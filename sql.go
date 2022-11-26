@@ -1,144 +1,173 @@
 package dvbcrud_go
 
 import (
-    "errors"
-    "fmt"
-    "github.com/jmoiron/sqlx"
-    "reflect"
-    "strings"
+	"errors"
+	"fmt"
+	"github.com/jmoiron/sqlx"
+	"reflect"
+	"strings"
 )
 
 type SqlConfig struct {
-    db        *sqlx.DB
-    tableName string
-    idName    string
+	db          *sqlx.DB
+	tableName   string
+	idFieldName string
 }
 
 type SqlRepository[TModel any] struct {
-    config SqlConfig
+	config SqlConfig
 }
 
 func (r SqlRepository[TModel]) Create(model TModel) error {
-    fields, values := r.parseFieldsAndValues(model)
+	fields, values := r.parseFieldsAndValues(model)
 
-    sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-        r.config.tableName,
-        strings.Join(fields, ", "),
-        strings.Repeat("?, ", len(values)-1)+"?")
-    stmt, err := r.config.db.Preparex(sql)
-    if err != nil {
-        return err
-    }
+	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+		r.config.tableName,
+		strings.Join(fields, ", "),
+		strings.Repeat("?, ", len(values)-1)+"?")
+	stmt, err := r.config.db.Preparex(sql)
+	if err != nil {
+		return err
+	}
 
-    exec, err := stmt.Exec(values...)
-    if err != nil {
-        return err
-    }
+	exec, err := stmt.Exec(values...)
+	if err != nil {
+		return err
+	}
 
-    affected, err := exec.RowsAffected()
-    if err != nil {
-        return err
-    }
-    if affected != 1 {
-        return fmt.Errorf("%d rows affected by INSERT INTO statement", affected)
-    }
+	affected, err := exec.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return fmt.Errorf("%d rows affected by INSERT INTO statement", affected)
+	}
 
-    return nil
+	return nil
 }
 
 func (r SqlRepository[TModel]) Read(id any) (TModel, error) {
-    sql := fmt.Sprintf("SELECT * FROM %s WHERE %s = ?",
-        r.config.tableName,
-        r.config.idName)
-    stmt, err := r.config.db.Preparex(sql)
-    if err != nil {
-        return nil, err
-    }
+	sql := fmt.Sprintf("SELECT * FROM %s WHERE %s = ?;",
+		r.config.tableName,
+		r.config.idFieldName)
+	stmt, err := r.config.db.Preparex(sql)
+	if err != nil {
+		return nil, err
+	}
 
-    var result TModel
-    err = stmt.Select(&result, id)
-    if err != nil {
-        return nil, err
-    }
+	var result TModel
+	err = stmt.Select(&result, id)
+	if err != nil {
+		return nil, err
+	}
 
-    return result, nil
+	return result, nil
 }
 
 func (r SqlRepository[TModel]) ReadAll() ([]TModel, error) {
-    sql := fmt.Sprintf("SELECT * FROM %s", r.config.tableName)
-    stmt, err := r.config.db.Preparex(sql)
-    if err != nil {
-        return nil, err
-    }
+	sql := fmt.Sprintf("SELECT * FROM %s;", r.config.tableName)
+	stmt, err := r.config.db.Preparex(sql)
+	if err != nil {
+		return nil, err
+	}
 
-    var result []TModel
-    err = stmt.Select(&result)
-    if err != nil {
-        return nil, err
-    }
+	var result []TModel
+	err = stmt.Select(&result)
+	if err != nil {
+		return nil, err
+	}
 
-    return result, nil
+	return result, nil
 }
 
 func (r SqlRepository[TModel]) Update(id any, model TModel) error {
-    return nil
+	fields, values := r.parseFieldsAndValues(model)
+	columns := make([]string, len(fields))
+	for i := 0; i < len(fields); i++ {
+		columns[i] = fmt.Sprintf("%s = ?", fields[i])
+	}
+
+	sql := fmt.Sprintf("UPDATE %s SET (%s) WHERE %s = ?;",
+		r.config.tableName,
+		strings.Join(columns, ", "),
+		r.config.idFieldName)
+	stmt, err := r.config.db.Preparex(sql)
+	if err != nil {
+		return err
+	}
+
+	allValues := append(values, id)
+	exec, err := stmt.Exec(allValues...)
+	if err != nil {
+		return err
+	}
+
+	affected, err := exec.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return fmt.Errorf("%d rows affected by UPDATE statement", affected)
+	}
+
+	return nil
 }
 
 func (r SqlRepository[TModel]) Delete(id any) error {
-    sql := fmt.Sprintf("DELETE * FROM %s WHERE %s = ?",
-        r.config.tableName,
-        r.config.idName)
-    stmt, err := r.config.db.Preparex(sql)
-    if err != nil {
-        return err
-    }
+	sql := fmt.Sprintf("DELETE * FROM %s WHERE %s = ?;",
+		r.config.tableName,
+		r.config.idFieldName)
+	stmt, err := r.config.db.Preparex(sql)
+	if err != nil {
+		return err
+	}
 
-    exec, err := stmt.Exec(id)
-    if err != nil {
-        return err
-    }
+	exec, err := stmt.Exec(id)
+	if err != nil {
+		return err
+	}
 
-    affected, err := exec.RowsAffected()
-    if err != nil {
-        return err
-    }
-    if affected > 1 {
-        return errors.New("more than 1 row affected by delete statement")
-    }
+	affected, err := exec.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected > 1 {
+		return errors.New("more than 1 row affected by DELETE statement")
+	}
 
-    return nil
+	return nil
 }
 
 func NewSql[TModel any](config SqlConfig) (Repository[TModel], error) {
-    if config.db == nil {
-        return nil, errors.New("config.db must be set")
-    }
-    if config.tableName == "" {
-        return nil, errors.New("config.tableName must be defined")
-    }
-    if config.idName == "" {
-        config.idName = "id"
-    }
+	if config.db == nil {
+		return nil, errors.New("config.db must be set")
+	}
+	if config.tableName == "" {
+		return nil, errors.New("config.tableName must be defined")
+	}
+	if config.idFieldName == "" {
+		config.idFieldName = "id"
+	}
 
-    return SqlRepository[TModel]{
-        config: config,
-    }, nil
+	return SqlRepository[TModel]{
+		config: config,
+	}, nil
 }
 
 func (r SqlRepository[TModel]) parseFieldsAndValues(model TModel) ([]string, []any) {
-    val := reflect.ValueOf(model).Elem()
-    numField := val.NumField()
-    fields := make([]string, numField)
-    values := make([]any, numField)
+	val := reflect.ValueOf(model).Elem()
+	numField := val.NumField()
+	fields := make([]string, numField)
+	values := make([]any, numField)
 
-    for i := 0; i < numField; i++ {
-        name := val.Type().Field(i).Name
-        if name == r.config.idName {
-            continue
-        }
-        fields[i] = name
-        values[i] = val.Field(i)
-    }
+	for i := 0; i < numField; i++ {
+		name := val.Type().Field(i).Name
+		if name == r.config.idFieldName {
+			continue
+		}
+		fields[i] = name
+		values[i] = val.Field(i)
+	}
 
-    return fields, values
+	return fields, values
 }
