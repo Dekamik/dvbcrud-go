@@ -10,14 +10,14 @@ import (
 )
 
 type testUser struct {
-	Id        int `db:"user_id"`
-	Name      string
-	Surname   string
-	Birthdate time.Time
+	Id        int       `db:"user_id"`
+	Name      string    `db:"name"`
+	Surname   string    `db:"surname"`
+	Birthdate time.Time `db:"birthdate"`
 	CreatedAt time.Time `db:"created_at"`
 }
 
-func newMock() (SqlRepository, *sql.DB, sqlmock.Sqlmock, error) {
+func newMock() (*SqlRepository, *sql.DB, sqlmock.Sqlmock, error) {
 	mockDb, mock, err := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
 	repository := SqlRepository{
@@ -25,10 +25,33 @@ func newMock() (SqlRepository, *sql.DB, sqlmock.Sqlmock, error) {
 		tableName:   "users",
 		idFieldName: "user_id",
 	}
-	return repository, mockDb, mock, err
+	return &repository, mockDb, mock, err
 }
 
-func TestSqlRepository_Read(t *testing.T) {
+func TestSqlCreate(t *testing.T) {
+	repo, mockDb, mock, _ := newMock()
+	defer mockDb.Close()
+
+	user := testUser{
+		Id:        1,
+		Name:      "AnyName",
+		Surname:   "AnySurname",
+		Birthdate: time.Now(),
+		CreatedAt: time.Now(),
+	}
+
+	mock.ExpectPrepare("^INSERT INTO users \\(name, surname, birthdate, created_at\\) VALUES \\(\\?, \\?, \\?, \\?\\);$").
+		ExpectExec().
+		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err := SqlCreate(repo, user)
+	if err != nil {
+		t.Fatalf("Expected SqlCreate to succeed.")
+	}
+}
+
+func TestSqlRead(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
@@ -47,12 +70,12 @@ func TestSqlRepository_Read(t *testing.T) {
 		WithArgs(expected.Id).
 		WillReturnRows(rows)
 
-	actual, err := Read[testUser](&repo, 1)
+	actual, err := SqlRead[testUser](repo, 1)
 	if err != nil {
 		t.Fatalf("Error on read: %s", err)
 	}
 
 	if !reflect.DeepEqual(&expected, actual) {
-		t.Fatalf("Actual user didn't match actual user on read")
+		t.Fatalf("Actual user must match expected user on read")
 	}
 }

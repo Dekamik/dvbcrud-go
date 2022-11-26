@@ -39,7 +39,7 @@ func SqlCreate[TModel any](r *SqlRepository, model TModel) error {
 	return nil
 }
 
-func Read[TModel any](r *SqlRepository, id any) (*TModel, error) {
+func SqlRead[TModel any](r *SqlRepository, id any) (*TModel, error) {
 	sql := getSelectFrom(r.tableName, r.idFieldName)
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
@@ -55,7 +55,7 @@ func Read[TModel any](r *SqlRepository, id any) (*TModel, error) {
 	return &result, nil
 }
 
-func ReadAll[TModel any](r *SqlRepository) ([]TModel, error) {
+func SqlReadAll[TModel any](r *SqlRepository) ([]TModel, error) {
 	sql := getSelectFrom(r.tableName, "")
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
@@ -71,7 +71,7 @@ func ReadAll[TModel any](r *SqlRepository) ([]TModel, error) {
 	return result, nil
 }
 
-func Update[TModel any](repository *SqlRepository, id any, model TModel) error {
+func SqlUpdate[TModel any](repository *SqlRepository, id any, model TModel) error {
 	fields, values := parseFieldsAndValues(repository, model)
 	sql := getUpdate(repository.tableName, repository.idFieldName, fields...)
 
@@ -97,7 +97,7 @@ func Update[TModel any](repository *SqlRepository, id any, model TModel) error {
 	return nil
 }
 
-func Delete(repository *SqlRepository, id any) error {
+func SqlDelete(repository *SqlRepository, id any) error {
 	sql := getDeleteFrom(repository.tableName, repository.idFieldName)
 	stmt, err := repository.db.Preparex(sql)
 	if err != nil {
@@ -124,18 +124,28 @@ func Delete(repository *SqlRepository, id any) error {
 // values as two slices. The slices are synchronized which means the
 // field and its value share the same index in both slices.
 func parseFieldsAndValues[TModel any](repository *SqlRepository, model TModel) ([]string, []any) {
-	val := reflect.ValueOf(model).Elem()
-	numField := val.NumField()
+	val := reflect.ValueOf(&model).Elem()
+	numField := val.NumField() - 1
 	fields := make([]string, numField)
 	values := make([]any, numField)
 
-	for i := 0; i < numField; i++ {
-		name := val.Type().Field(i).Name
+	offset := 0
+	for i := 0; i < numField+1; i++ {
+		field := val.Type().Field(i)
+		var name string
+
+		if tag := field.Tag.Get("db"); tag != "" {
+			name = tag
+		} else {
+			name = field.Name
+		}
+
 		if name == repository.idFieldName {
+			offset--
 			continue
 		}
-		fields[i] = name
-		values[i] = val.Field(i)
+		fields[i+offset] = name
+		values[i+offset] = val.Field(i).Interface()
 	}
 
 	return fields, values
