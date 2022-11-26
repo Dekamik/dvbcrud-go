@@ -7,7 +7,7 @@ import (
 	"reflect"
 )
 
-// SqlRepository holds configuration data for the SqlRepository.
+// SqlRepository handles queries to SQL databases.
 type SqlRepository[T any] struct {
 	db          *sqlx.DB
 	tableName   string

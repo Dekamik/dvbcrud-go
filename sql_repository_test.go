@@ -28,7 +28,7 @@ func newMock() (*SqlRepository[testUser], *sql.DB, sqlmock.Sqlmock, error) {
 	return &repo, mockDb, mock, err
 }
 
-func TestSqlCreate(t *testing.T) {
+func TestSqlRepository_Create(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
@@ -47,11 +47,11 @@ func TestSqlCreate(t *testing.T) {
 
 	err := repo.Create(user)
 	if err != nil {
-		t.Fatalf("Expected Create to succeed.")
+		t.Fatalf("Expected Create to succeed, but got: %s", err)
 	}
 }
 
-func TestSqlRead(t *testing.T) {
+func TestSqlRepository_Read(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
@@ -80,7 +80,7 @@ func TestSqlRead(t *testing.T) {
 	}
 }
 
-func TestSqlReadAll(t *testing.T) {
+func TestSqlRepository_ReadAll(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
@@ -115,5 +115,43 @@ func TestSqlReadAll(t *testing.T) {
 
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("Actual user must match expected user on read")
+	}
+}
+
+func TestSqlRepository_Update(t *testing.T) {
+	repo, mockDb, mock, _ := newMock()
+	defer mockDb.Close()
+
+	user := testUser{
+		Id:        1,
+		Name:      "AnyName",
+		Surname:   "AnySurname",
+		Birthdate: time.Now(),
+		CreatedAt: time.Now(),
+	}
+
+	mock.ExpectPrepare("^UPDATE users SET \\(name = \\?, surname = \\?, birthdate = \\?, created_at = \\?\\) WHERE user_id = \\?;$").
+		ExpectExec().
+		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, user.Id).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err := repo.Update(1, user)
+	if err != nil {
+		t.Fatalf("Expected Update to succeed, but got: %s", err)
+	}
+}
+
+func TestSqlRepository_Delete(t *testing.T) {
+	repo, mockDb, mock, _ := newMock()
+	defer mockDb.Close()
+
+	mock.ExpectPrepare("^DELETE \\* FROM users WHERE user_id = \\?;$").
+		ExpectExec().
+		WithArgs(1).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err := repo.Delete(1)
+	if err != nil {
+		t.Fatalf("Expected Delete to succeed, but got: %s", err)
 	}
 }
