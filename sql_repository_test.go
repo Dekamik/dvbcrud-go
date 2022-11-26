@@ -17,15 +17,15 @@ type testUser struct {
 	CreatedAt time.Time `db:"created_at"`
 }
 
-func newMock() (*SqlRepository, *sql.DB, sqlmock.Sqlmock, error) {
+func newMock() (*SqlRepository[testUser], *sql.DB, sqlmock.Sqlmock, error) {
 	mockDb, mock, err := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repository := SqlRepository{
+	repo := SqlRepository[testUser]{
 		db:          sqlxDb,
 		tableName:   "users",
 		idFieldName: "user_id",
 	}
-	return &repository, mockDb, mock, err
+	return &repo, mockDb, mock, err
 }
 
 func TestSqlCreate(t *testing.T) {
@@ -45,9 +45,9 @@ func TestSqlCreate(t *testing.T) {
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err := SqlCreate(repo, user)
+	err := repo.Create(user)
 	if err != nil {
-		t.Fatalf("Expected SqlCreate to succeed.")
+		t.Fatalf("Expected Create to succeed.")
 	}
 }
 
@@ -70,12 +70,50 @@ func TestSqlRead(t *testing.T) {
 		WithArgs(expected.Id).
 		WillReturnRows(rows)
 
-	actual, err := SqlRead[testUser](repo, 1)
+	actual, err := repo.Read(1)
 	if err != nil {
 		t.Fatalf("Error on read: %s", err)
 	}
 
 	if !reflect.DeepEqual(&expected, actual) {
+		t.Fatalf("Actual user must match expected user on read")
+	}
+}
+
+func TestSqlReadAll(t *testing.T) {
+	repo, mockDb, mock, _ := newMock()
+	defer mockDb.Close()
+
+	expected := []testUser{
+		{
+			Id:        1,
+			Name:      "AnyName1",
+			Surname:   "AnySurname1",
+			Birthdate: time.Now(),
+			CreatedAt: time.Now(),
+		},
+		{
+			Id:        2,
+			Name:      "AnyName2",
+			Surname:   "AnySurname2",
+			Birthdate: time.Now(),
+			CreatedAt: time.Now(),
+		},
+	}
+
+	rows := sqlmock.NewRows([]string{"user_id", "name", "surname", "birthdate", "created_at"}).
+		AddRow(expected[0].Id, expected[0].Name, expected[0].Surname, expected[0].Birthdate, expected[0].CreatedAt).
+		AddRow(expected[1].Id, expected[1].Name, expected[1].Surname, expected[1].Birthdate, expected[1].CreatedAt)
+	mock.ExpectPrepare("^SELECT \\* FROM users;$").
+		ExpectQuery().
+		WillReturnRows(rows)
+
+	actual, err := repo.ReadAll()
+	if err != nil {
+		t.Fatalf("Error on read: %s", err)
+	}
+
+	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("Actual user must match expected user on read")
 	}
 }

@@ -8,14 +8,14 @@ import (
 )
 
 // SqlRepository holds configuration data for the SqlRepository.
-type SqlRepository struct {
+type SqlRepository[T any] struct {
 	db          *sqlx.DB
 	tableName   string
 	idFieldName string
 }
 
-func SqlCreate[TModel any](r *SqlRepository, model TModel) error {
-	fields, values := parseFieldsAndValues(r, model)
+func (r SqlRepository[T]) Create(model T) error {
+	fields, values := r.parseFieldsAndValues(model)
 	sql := getInsertInto(r.tableName, fields...)
 
 	stmt, err := r.db.Preparex(sql)
@@ -39,14 +39,14 @@ func SqlCreate[TModel any](r *SqlRepository, model TModel) error {
 	return nil
 }
 
-func SqlRead[TModel any](r *SqlRepository, id any) (*TModel, error) {
+func (r SqlRepository[T]) Read(id any) (*T, error) {
 	sql := getSelectFrom(r.tableName, r.idFieldName)
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
 	}
 
-	var result TModel
+	var result T
 	err = stmt.QueryRowx(id).StructScan(&result)
 	if err != nil {
 		return nil, err
@@ -55,14 +55,14 @@ func SqlRead[TModel any](r *SqlRepository, id any) (*TModel, error) {
 	return &result, nil
 }
 
-func SqlReadAll[TModel any](r *SqlRepository) ([]TModel, error) {
+func (r SqlRepository[T]) ReadAll() ([]T, error) {
 	sql := getSelectFrom(r.tableName, "")
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []TModel
+	var result []T
 	err = stmt.Select(&result)
 	if err != nil {
 		return nil, err
@@ -71,11 +71,11 @@ func SqlReadAll[TModel any](r *SqlRepository) ([]TModel, error) {
 	return result, nil
 }
 
-func SqlUpdate[TModel any](repository *SqlRepository, id any, model TModel) error {
-	fields, values := parseFieldsAndValues(repository, model)
-	sql := getUpdate(repository.tableName, repository.idFieldName, fields...)
+func (r SqlRepository[T]) Update(id any, model T) error {
+	fields, values := r.parseFieldsAndValues(model)
+	sql := getUpdate(r.tableName, r.idFieldName, fields...)
 
-	stmt, err := repository.db.Preparex(sql)
+	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return err
 	}
@@ -97,9 +97,9 @@ func SqlUpdate[TModel any](repository *SqlRepository, id any, model TModel) erro
 	return nil
 }
 
-func SqlDelete(repository *SqlRepository, id any) error {
-	sql := getDeleteFrom(repository.tableName, repository.idFieldName)
-	stmt, err := repository.db.Preparex(sql)
+func (r SqlRepository[T]) Delete(id any) error {
+	sql := getDeleteFrom(r.tableName, r.idFieldName)
+	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func SqlDelete(repository *SqlRepository, id any) error {
 // parseFieldsAndValues reads the TModel and returns its fields and
 // values as two slices. The slices are synchronized which means the
 // field and its value share the same index in both slices.
-func parseFieldsAndValues[TModel any](repository *SqlRepository, model TModel) ([]string, []any) {
+func (r SqlRepository[T]) parseFieldsAndValues(model T) ([]string, []any) {
 	val := reflect.ValueOf(&model).Elem()
 	numField := val.NumField() - 1
 	fields := make([]string, numField)
@@ -140,7 +140,7 @@ func parseFieldsAndValues[TModel any](repository *SqlRepository, model TModel) (
 			name = field.Name
 		}
 
-		if name == repository.idFieldName {
+		if name == r.idFieldName {
 			offset--
 			continue
 		}
