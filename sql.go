@@ -4,6 +4,8 @@ import (
     "errors"
     "fmt"
     "github.com/jmoiron/sqlx"
+    "reflect"
+    "strings"
 )
 
 type SqlConfig struct {
@@ -17,12 +19,37 @@ type SqlRepository[TModel any] struct {
 }
 
 func (r SqlRepository[TModel]) Create(model TModel) error {
+    fields, values := r.parseFieldsAndValues(model)
+
+    sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+        r.config.tableName,
+        strings.Join(fields, ", "),
+        strings.Repeat("?, ", len(values)-1)+"?")
+    stmt, err := r.config.db.Preparex(sql)
+    if err != nil {
+        return err
+    }
+
+    exec, err := stmt.Exec(values...)
+    if err != nil {
+        return err
+    }
+
+    affected, err := exec.RowsAffected()
+    if err != nil {
+        return err
+    }
+    if affected != 1 {
+        return fmt.Errorf("%d rows affected by INSERT INTO statement", affected)
+    }
 
     return nil
 }
 
 func (r SqlRepository[TModel]) Read(id any) (TModel, error) {
-    sql := fmt.Sprintf("SELECT * FROM %s WHERE %s = ?", r.config.tableName, r.config.idName)
+    sql := fmt.Sprintf("SELECT * FROM %s WHERE %s = ?",
+        r.config.tableName,
+        r.config.idName)
     stmt, err := r.config.db.Preparex(sql)
     if err != nil {
         return nil, err
@@ -58,13 +85,15 @@ func (r SqlRepository[TModel]) Update(id any, model TModel) error {
 }
 
 func (r SqlRepository[TModel]) Delete(id any) error {
-    sql := fmt.Sprintf("DELETE * FROM %s WHERE %s = ?", r.config.tableName, r.config.idName)
+    sql := fmt.Sprintf("DELETE * FROM %s WHERE %s = ?",
+        r.config.tableName,
+        r.config.idName)
     stmt, err := r.config.db.Preparex(sql)
     if err != nil {
         return err
     }
 
-    exec, err := stmt.Exec()
+    exec, err := stmt.Exec(id)
     if err != nil {
         return err
     }
@@ -94,4 +123,22 @@ func NewSql[TModel any](config SqlConfig) (Repository[TModel], error) {
     return SqlRepository[TModel]{
         config: config,
     }, nil
+}
+
+func (r SqlRepository[TModel]) parseFieldsAndValues(model TModel) ([]string, []any) {
+    val := reflect.ValueOf(model).Elem()
+    numField := val.NumField()
+    fields := make([]string, numField)
+    values := make([]any, numField)
+
+    for i := 0; i < numField; i++ {
+        name := val.Type().Field(i).Name
+        if name == r.config.idName {
+            continue
+        }
+        fields[i] = name
+        values[i] = val.Field(i)
+    }
+
+    return fields, values
 }
