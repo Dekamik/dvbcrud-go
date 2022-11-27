@@ -76,7 +76,7 @@ func TestSqlRepository_Read(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(&expected, actual) {
-		t.Fatalf("Actual user must match expected user on read")
+		t.Fatalf("Actual user must match expected user on Read")
 	}
 }
 
@@ -114,7 +114,7 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(expected, actual) {
-		t.Fatalf("Actual user must match expected user on read")
+		t.Fatalf("Actual users must match expected users on ReadAll")
 	}
 }
 

@@ -7,7 +7,8 @@ import (
 	"reflect"
 )
 
-// SqlRepository handles queries to SQL databases.
+// SqlRepository handles queries to a table in an SQL database.
+// T is the struct type that will be mapped against the table rows.
 type SqlRepository[T any] struct {
 	db          *sqlx.DB
 	tableName   string
@@ -16,7 +17,7 @@ type SqlRepository[T any] struct {
 
 func (r SqlRepository[T]) Create(model T) error {
 	fields, values := r.parseFieldsAndValues(model)
-	sql := getInsertInto(r.tableName, fields...)
+	sql := getInsertIntoStmt(r.tableName, fields...)
 
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
@@ -40,7 +41,7 @@ func (r SqlRepository[T]) Create(model T) error {
 }
 
 func (r SqlRepository[T]) Read(id any) (*T, error) {
-	sql := getSelectFrom(r.tableName, r.idFieldName)
+	sql := getSelectFromStmt(r.tableName, r.idFieldName)
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
@@ -56,7 +57,7 @@ func (r SqlRepository[T]) Read(id any) (*T, error) {
 }
 
 func (r SqlRepository[T]) ReadAll() ([]T, error) {
-	sql := getSelectFrom(r.tableName, "")
+	sql := getSelectFromStmt(r.tableName, "")
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ func (r SqlRepository[T]) ReadAll() ([]T, error) {
 
 func (r SqlRepository[T]) Update(id any, model T) error {
 	fields, values := r.parseFieldsAndValues(model)
-	sql := getUpdate(r.tableName, r.idFieldName, fields...)
+	sql := getUpdateStmt(r.tableName, r.idFieldName, fields...)
 
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
@@ -98,7 +99,7 @@ func (r SqlRepository[T]) Update(id any, model T) error {
 }
 
 func (r SqlRepository[T]) Delete(id any) error {
-	sql := getDeleteFrom(r.tableName, r.idFieldName)
+	sql := getDeleteFromStmt(r.tableName, r.idFieldName)
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return err
@@ -120,9 +121,9 @@ func (r SqlRepository[T]) Delete(id any) error {
 	return nil
 }
 
-// parseFieldsAndValues reads the TModel and returns its fields and
-// values as two slices. The slices are synchronized which means the
-// field and its value share the same index in both slices.
+// parseFieldsAndValues reads the struct type T and returns its fields
+// and values as two slices. The slices are synchronized which means each
+// field and its corresponding value share the same index in both slices.
 func (r SqlRepository[T]) parseFieldsAndValues(model T) ([]string, []any) {
 	val := reflect.ValueOf(&model).Elem()
 	numField := val.NumField() - 1
