@@ -151,3 +151,52 @@ func TestSqlRepository_Delete(t *testing.T) {
 		t.Fatalf("Expected Delete to succeed, but got: %s", err)
 	}
 }
+
+func TestNewSql(t *testing.T) {
+	mockDb, _, _ := sqlmock.New()
+	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
+	repo, _ := NewSql[repoTestUser](sqlxDb, "Users", "UserId")
+
+	if repo == nil {
+		t.Fatalf("Expected a repo, but got nil instead")
+	}
+}
+
+func TestNewSqlNilDb(t *testing.T) {
+	_, err := NewSql[repoTestUser](nil, "users", "UserId")
+	if err == nil {
+		t.Fatalf("Expected error on nil db")
+	}
+
+	expected := "db cannot be nil"
+	if err.Error() != expected {
+		t.Fatalf("Expected \"%s\" error but got \"%s\" instead", expected, err.Error())
+	}
+}
+
+func TestNewSqlEmptyTableName(t *testing.T) {
+	mockDb, _, _ := sqlmock.New()
+	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
+	_, err := NewSql[repoTestUser](sqlxDb, "", "UserId")
+	if err == nil {
+		t.Fatalf("Expected error on empty table name")
+	}
+
+	expected := "tableName cannot be empty"
+	if err.Error() != expected {
+		t.Fatalf("Expected \"%s\" error but got \"%s\" instead", expected, err.Error())
+	}
+}
+
+func TestNewSqlEmptyIdFieldName(t *testing.T) {
+	mockDb, _, _ := sqlmock.New()
+	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
+	repo, _ := NewSql[repoTestUser](sqlxDb, "users", "")
+	if repo == nil {
+		t.Fatalf("Expected a repo on empty idFieldName")
+	}
+
+	if repo.idFieldName != "id" {
+		t.Fatalf("Expected idFieldName to be \"id\"")
+	}
+}
