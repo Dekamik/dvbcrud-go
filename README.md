@@ -1,7 +1,7 @@
 # dvbcrud-go
 
 Simple and generic wrapper for `github.com/jmoiron/sqlx` that handle common CRUD queries as well as conversion between 
-rows and struct types. It does so through templating and reflection.
+rows and struct types. It relies on formatting and reflection to achieve this.
 
 This module is useful for rapidly developing 
 
