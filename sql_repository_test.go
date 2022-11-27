@@ -9,18 +9,18 @@ import (
 	"time"
 )
 
-type testUser struct {
-	Id        int       `db:"UserId"`
+type repoTestUser struct {
+	Id        uint64    `db:"UserId"`
 	Name      string    `db:"Name"`
 	Surname   string    `db:"Surname"`
 	Birthdate time.Time `db:"Birthdate"`
 	CreatedAt time.Time `db:"CreatedAt"`
 }
 
-func newMock() (*SqlRepository[testUser], *sql.DB, sqlmock.Sqlmock, error) {
+func newMock() (*SqlRepository[repoTestUser], *sql.DB, sqlmock.Sqlmock, error) {
 	mockDb, mock, err := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repo, _ := NewSql[testUser](sqlxDb, "Users", "UserId")
+	repo, _ := NewSql[repoTestUser](sqlxDb, "Users", "UserId")
 	return repo, mockDb, mock, err
 }
 
@@ -28,7 +28,7 @@ func TestSqlRepository_Create(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
-	user := testUser{
+	user := repoTestUser{
 		Id:        1,
 		Name:      "AnyName",
 		Surname:   "AnySurname",
@@ -51,7 +51,7 @@ func TestSqlRepository_Read(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
-	expected := testUser{
+	expected := repoTestUser{
 		Id:        1,
 		Name:      "AnyName",
 		Surname:   "AnySurname",
@@ -80,7 +80,7 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
-	expected := []testUser{
+	expected := []repoTestUser{
 		{
 			Id:        1,
 			Name:      "AnyName1",
@@ -118,7 +118,7 @@ func TestSqlRepository_Update(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
-	user := testUser{
+	user := repoTestUser{
 		Id:        1,
 		Name:      "AnyName",
 		Surname:   "AnySurname",
