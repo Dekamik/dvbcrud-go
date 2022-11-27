@@ -8,7 +8,7 @@ architecture.
 
 # Usage
 
-Below is a simple example on how to use `dvbcrud`. 
+Below is a simple example on how to use `dvbcrud`.
 
 ```go
 package example
@@ -21,21 +21,36 @@ import (
 )
 
 type User struct {
-    Id        uint64    `db:"UserId"`
-    Name      string    `db:"Name"`
-    Birthdate time.Time `db:"Birthdate"`
+    ID        uint64    `db:"user_id"`
+    Name      string    `db:"name"`
+    Birthdate time.Time `db:"birthdate"`
 }
 
 func main() {
     // All errors are ignored for brevity
-    db, _ := sqlx.Connect("mssql", "datasource")
-    _ = db.Ping()
-    userRepo, _ := dvbcrud.NewSql[User](db, "Users", "UserId")
+    DB, _ := sqlx.Connect("mssql", "datasource")
+    _ = DB.Ping()
+    userRepo, _ := dvbcrud.NewSql[User](DB, "Users", "UserId")
 
-    users, _ := userRepo.ReadAll()
+    seed := []User{
+        {
+            Name:      "Winston",
+            Birthdate: time.Date(1984, time.April, 3, 12, 59, 3, 0, time.UTC),
+        },
+        {
+            Name:      "Julia",
+            Birthdate: time.Date(1985, time.April, 3, 12, 59, 3, 0, time.UTC),
+        },
+    }
 
-    for _, u := range users {
-        fmt.Printf("Hello, %s!\n", u.Name)
+    for _, user := range seed {
+        _ = userRepo.Create(user)
+    }
+
+    results, _ := userRepo.ReadAll()
+
+    for _, result := range results {
+        fmt.Printf("Hello, %s!\n", result.Name)
     }
 }
 ```

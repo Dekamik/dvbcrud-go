@@ -1,4 +1,4 @@
-module github.com/Dekamik/dvbcrud-go
+module github.com/dekamik/dvbcrud-go
 
 go 1.19
 

@@ -11,7 +11,7 @@ import (
 )
 
 type repoTestUser struct {
-	Id        uint64    `db:"UserId"`
+	ID        uint64    `db:"UserId"`
 	Name      string    `db:"Name"`
 	Surname   string    `db:"Surname"`
 	Birthdate time.Time `db:"Birthdate"`
@@ -34,7 +34,7 @@ func TestSqlRepository_Create(t *testing.T) {
 	defer mockDb.Close()
 
 	user := repoTestUser{
-		Id:        1,
+		ID:        1,
 		Name:      "AnyName",
 		Surname:   "AnySurname",
 		Birthdate: time.Now(),
@@ -128,7 +128,7 @@ func TestSqlRepository_Read(t *testing.T) {
 	defer mockDb.Close()
 
 	expected := repoTestUser{
-		Id:        1,
+		ID:        1,
 		Name:      "AnyName",
 		Surname:   "AnySurname",
 		Birthdate: time.Now(),
@@ -136,10 +136,10 @@ func TestSqlRepository_Read(t *testing.T) {
 	}
 
 	rows := sqlmock.NewRows([]string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}).
-		AddRow(expected.Id, expected.Name, expected.Surname, expected.Birthdate, expected.CreatedAt)
+		AddRow(expected.ID, expected.Name, expected.Surname, expected.Birthdate, expected.CreatedAt)
 	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?;$").
 		ExpectQuery().
-		WithArgs(expected.Id).
+		WithArgs(expected.ID).
 		WillReturnRows(rows)
 
 	actual, err := repo.Read(1)
@@ -200,14 +200,14 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 
 	expected := []repoTestUser{
 		{
-			Id:        1,
+			ID:        1,
 			Name:      "AnyName1",
 			Surname:   "AnySurname1",
 			Birthdate: time.Now(),
 			CreatedAt: time.Now(),
 		},
 		{
-			Id:        2,
+			ID:        2,
 			Name:      "AnyName2",
 			Surname:   "AnySurname2",
 			Birthdate: time.Now(),
@@ -216,8 +216,8 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	}
 
 	rows := sqlmock.NewRows([]string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}).
-		AddRow(expected[0].Id, expected[0].Name, expected[0].Surname, expected[0].Birthdate, expected[0].CreatedAt).
-		AddRow(expected[1].Id, expected[1].Name, expected[1].Surname, expected[1].Birthdate, expected[1].CreatedAt)
+		AddRow(expected[0].ID, expected[0].Name, expected[0].Surname, expected[0].Birthdate, expected[0].CreatedAt).
+		AddRow(expected[1].ID, expected[1].Name, expected[1].Surname, expected[1].Birthdate, expected[1].CreatedAt)
 	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users;$").
 		ExpectQuery().
 		WillReturnRows(rows)
@@ -278,7 +278,7 @@ func TestSqlRepository_Update(t *testing.T) {
 	defer mockDb.Close()
 
 	user := repoTestUser{
-		Id:        1,
+		ID:        1,
 		Name:      "AnyName",
 		Surname:   "AnySurname",
 		Birthdate: time.Now(),
@@ -287,7 +287,7 @@ func TestSqlRepository_Update(t *testing.T) {
 
 	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
 		ExpectExec().
-		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, user.Id).
+		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, user.ID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err := repo.Update(1, user)

@@ -7,7 +7,7 @@ import (
 )
 
 type structTestUser struct {
-	Id        uint64    `db:"UserId"`
+	ID        uint64    `db:"UserId"`
 	Name      string    `db:"Name"`
 	Surname   string    `db:"Surname"`
 	Birthdate time.Time `db:"Birthdate"`
@@ -15,7 +15,7 @@ type structTestUser struct {
 }
 
 type testMissingTagAddress struct {
-	Id      uint64 `db:"address_id"`
+	ID      uint64 `db:"address_id"`
 	Address string `db:"address"`
 	ZipCode string `db:"zip_code"`
 	City    string
@@ -54,7 +54,7 @@ func TestParseFieldNamesMissingTag(t *testing.T) {
 
 func TestParseProperties(t *testing.T) {
 	user := structTestUser{
-		Id:        1,
+		ID:        1,
 		Name:      "AnyName",
 		Surname:   "AnySurname",
 		Birthdate: time.Now(),
@@ -86,7 +86,7 @@ func TestParsePropertiesNonStructType(t *testing.T) {
 
 func TestParsePropertiesMissingTag(t *testing.T) {
 	address := testMissingTagAddress{
-		Id:      0,
+		ID:      0,
 		Address: "",
 		ZipCode: "",
 		City:    "",
