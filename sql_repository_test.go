@@ -382,6 +382,63 @@ func TestSqlRepository_Delete(t *testing.T) {
 	}
 }
 
+func TestSqlRepository_DeletePrepareErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := fmt.Errorf("any error")
+	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+		WillReturnError(expected)
+
+	actual := repo.Delete(1)
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_DeleteExecErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := fmt.Errorf("any error")
+	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+		ExpectExec().
+		WillReturnError(expected)
+
+	actual := repo.Delete(1)
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_DeleteRowsAffectedErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := fmt.Errorf("any error")
+	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+		ExpectExec().
+		WithArgs(1).
+		WillReturnResult(sqlmock.NewErrorResult(expected))
+
+	actual := repo.Delete(1)
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_DeleteOtherThanOneRowAffected(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := "2 rows affected by DELETE statement"
+	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+		ExpectExec().
+		WithArgs(1).
+		WillReturnResult(sqlmock.NewResult(1, 2))
+
+	actual := repo.Delete(1)
+
+	if actual.Error() != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
 func TestNewSql(t *testing.T) {
 	mockDb, _, _ := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
