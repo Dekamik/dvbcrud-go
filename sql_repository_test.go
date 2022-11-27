@@ -232,6 +232,47 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	}
 }
 
+func TestSqlRepository_ReadAllParsePropertiesErr(t *testing.T) {
+	repo, _, _, _ := newMock[parseCrashingType]()
+	expected := "parseCrashingType.id lacks a db tag"
+
+	_, actual := repo.ReadAll()
+
+	if actual.Error() != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_ReadAllPrepareErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := fmt.Errorf("any error")
+	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users;$").
+		WillReturnError(expected)
+
+	_, actual := repo.ReadAll()
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_ReadAllStructScanErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := "missing destination name AnyId in *[]dvbcrud.repoTestUser"
+
+	rows := sqlmock.NewRows([]string{"AnyId"}).
+		AddRow(1)
+	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users;$").
+		ExpectQuery().
+		WillReturnRows(rows)
+
+	_, actual := repo.ReadAll()
+
+	if actual.Error() != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
 func TestSqlRepository_Update(t *testing.T) {
 	repo, mockDb, mock, _ := newMock[repoTestUser]()
 	defer mockDb.Close()
