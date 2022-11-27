@@ -3,7 +3,8 @@
 Simple and generic wrapper for `github.com/jmoiron/sqlx` that handle common CRUD queries as well as conversion between 
 rows and struct types. It relies on formatting and reflection to achieve this.
 
-This module is useful for rapidly developing 
+This module is useful for rapidly integrating databases in your application, especially as part of a microservice
+architecture.
 
 # Usage
 
