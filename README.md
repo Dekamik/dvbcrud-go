@@ -20,9 +20,9 @@ import (
 )
 
 type User struct {
-    Id        uint64 `db:"UserId"`
-    Name      string
-    Birthdate time.Time
+    Id        uint64    `db:"UserId"`
+    Name      string    `db:"Name"`
+    Birthdate time.Time `db:"Birthdate"`
 }
 
 func main() {

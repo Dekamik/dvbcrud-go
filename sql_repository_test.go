@@ -10,11 +10,11 @@ import (
 )
 
 type testUser struct {
-	Id        int `db:"UserId"`
-	Name      string
-	Surname   string
-	Birthdate time.Time
-	CreatedAt time.Time
+	Id        int       `db:"UserId"`
+	Name      string    `db:"Name"`
+	Surname   string    `db:"Surname"`
+	Birthdate time.Time `db:"Birthdate"`
+	CreatedAt time.Time `db:"CreatedAt"`
 }
 
 func newMock() (*SqlRepository[testUser], *sql.DB, sqlmock.Sqlmock, error) {

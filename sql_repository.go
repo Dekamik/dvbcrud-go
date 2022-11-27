@@ -146,16 +146,7 @@ func parseFieldNames[T reflect.Type](typ T) []string {
 	fields := make([]string, numFields)
 
 	for i := 0; i < numFields; i++ {
-		field := typ.Field(i)
-		var name string
-
-		if tag := field.Tag.Get("db"); tag != "" {
-			name = tag
-		} else {
-			name = field.Name
-		}
-
-		fields[i] = name
+		fields[i] = typ.Field(i).Tag.Get("db")
 	}
 
 	return fields
@@ -164,7 +155,8 @@ func parseFieldNames[T reflect.Type](typ T) []string {
 // parseProperties reads the struct type T and returns its fields
 // and values as two slices. The slices are synchronized which means each
 // field and its corresponding value share the same index in both slices.
-// This method excludes the id field of T.
+// Specifying idFieldName filters out that field, which is useful in
+// INSERTS and UPDATES.
 func parseProperties[T any](model T, idFieldName string) ([]string, []any) {
 	val := reflect.ValueOf(&model).Elem()
 	numField := val.NumField()
@@ -173,18 +165,11 @@ func parseProperties[T any](model T, idFieldName string) ([]string, []any) {
 
 	index := 0
 	for i := 0; i < numField; i++ {
-		field := val.Type().Field(i)
-		var name string
-
-		if tag := field.Tag.Get("db"); tag != "" {
-			name = tag
-		} else {
-			name = field.Name
-		}
-
+		name := val.Type().Field(i).Tag.Get("db")
 		if name == idFieldName {
 			continue
 		}
+
 		fields[index] = name
 		values[index] = val.Field(i).Interface()
 		index++
