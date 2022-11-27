@@ -26,10 +26,13 @@ func parseFieldNames(typ reflect.Type) ([]string, error) {
 }
 
 // parseProperties reads the struct type T and returns its fields
-// and values as two slices. The slices are synchronized which means each
-// field and its corresponding value share the same index in both slices.
-// Specifying idFieldName filters out that field, which is necessary in
-// INSERTS and UPDATES.
+// and values as two slices. The slices are guaranteed to match indices.
+//
+// Separating the properties into fields and values slices is required
+// when formatting and preparing statements.
+//
+// Specifying idFieldName filters out that field in the resulting slices,
+// which is necessary in INSERTS and UPDATES.
 func parseProperties(model any, idFieldName string) ([]string, []any, error) {
 	val := reflect.ValueOf(model)
 	if val.Kind() != reflect.Struct {
