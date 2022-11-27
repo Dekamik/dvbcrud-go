@@ -145,7 +145,7 @@ func TestSqlRepository_Delete(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
-	mock.ExpectPrepare("^DELETE \\* FROM users WHERE user_id = \\?;$").
+	mock.ExpectPrepare("^DELETE FROM users WHERE user_id = \\?;$").
 		ExpectExec().
 		WithArgs(1).
 		WillReturnResult(sqlmock.NewResult(1, 1))

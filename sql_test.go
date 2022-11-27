@@ -53,7 +53,7 @@ func TestUpdatePassByValue(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	actual := getDeleteFromStmt("users", "id")
-	expected := "DELETE * FROM users WHERE id = ?;"
+	expected := "DELETE FROM users WHERE id = ?;"
 	if actual != expected {
 		t.Fatalf("getDeleteFromStmt(\"users\", \"id\") should be \"%s\" but was %s instead", expected, actual)
 	}

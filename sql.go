@@ -27,5 +27,5 @@ func getUpdateStmt(tableName string, idFieldName string, fields ...string) strin
 }
 
 func getDeleteFromStmt(tableName string, idFieldName string) string {
-	return fmt.Sprintf("DELETE * FROM %s WHERE %s = ?;", tableName, idFieldName)
+	return fmt.Sprintf("DELETE FROM %s WHERE %s = ?;", tableName, idFieldName)
 }
