@@ -10,22 +10,18 @@ import (
 )
 
 type testUser struct {
-	Id        int       `db:"user_id"`
-	Name      string    `db:"name"`
-	Surname   string    `db:"surname"`
-	Birthdate time.Time `db:"birthdate"`
-	CreatedAt time.Time `db:"created_at"`
+	Id        int `db:"UserId"`
+	Name      string
+	Surname   string
+	Birthdate time.Time
+	CreatedAt time.Time
 }
 
 func newMock() (*SqlRepository[testUser], *sql.DB, sqlmock.Sqlmock, error) {
 	mockDb, mock, err := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repo := SqlRepository[testUser]{
-		db:          sqlxDb,
-		tableName:   "users",
-		idFieldName: "user_id",
-	}
-	return &repo, mockDb, mock, err
+	repo, _ := NewSql[testUser](sqlxDb, "Users", "UserId")
+	return repo, mockDb, mock, err
 }
 
 func TestSqlRepository_Create(t *testing.T) {
@@ -40,7 +36,7 @@ func TestSqlRepository_Create(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	mock.ExpectPrepare("^INSERT INTO users \\(name, surname, birthdate, created_at\\) VALUES \\(\\?, \\?, \\?, \\?\\);$").
+	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\);$").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -63,16 +59,16 @@ func TestSqlRepository_Read(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	rows := sqlmock.NewRows([]string{"user_id", "name", "surname", "birthdate", "created_at"}).
+	rows := sqlmock.NewRows([]string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}).
 		AddRow(expected.Id, expected.Name, expected.Surname, expected.Birthdate, expected.CreatedAt)
-	mock.ExpectPrepare("^SELECT \\* FROM users WHERE user_id = \\?;$").
+	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?;$").
 		ExpectQuery().
 		WithArgs(expected.Id).
 		WillReturnRows(rows)
 
 	actual, err := repo.Read(1)
 	if err != nil {
-		t.Fatalf("Error on read: %s", err)
+		t.Fatalf("Error on Read: %s", err)
 	}
 
 	if !reflect.DeepEqual(&expected, actual) {
@@ -101,16 +97,16 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 		},
 	}
 
-	rows := sqlmock.NewRows([]string{"user_id", "name", "surname", "birthdate", "created_at"}).
+	rows := sqlmock.NewRows([]string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}).
 		AddRow(expected[0].Id, expected[0].Name, expected[0].Surname, expected[0].Birthdate, expected[0].CreatedAt).
 		AddRow(expected[1].Id, expected[1].Name, expected[1].Surname, expected[1].Birthdate, expected[1].CreatedAt)
-	mock.ExpectPrepare("^SELECT \\* FROM users;$").
+	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users;$").
 		ExpectQuery().
 		WillReturnRows(rows)
 
 	actual, err := repo.ReadAll()
 	if err != nil {
-		t.Fatalf("Error on read: %s", err)
+		t.Fatalf("Error on ReadAll: %s", err)
 	}
 
 	if !reflect.DeepEqual(expected, actual) {
@@ -130,7 +126,7 @@ func TestSqlRepository_Update(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	mock.ExpectPrepare("^UPDATE users SET \\(name = \\?, surname = \\?, birthdate = \\?, created_at = \\?\\) WHERE user_id = \\?;$").
+	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, user.Id).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -145,7 +141,7 @@ func TestSqlRepository_Delete(t *testing.T) {
 	repo, mockDb, mock, _ := newMock()
 	defer mockDb.Close()
 
-	mock.ExpectPrepare("^DELETE FROM users WHERE user_id = \\?;$").
+	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
 		ExpectExec().
 		WithArgs(1).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -153,5 +149,34 @@ func TestSqlRepository_Delete(t *testing.T) {
 	err := repo.Delete(1)
 	if err != nil {
 		t.Fatalf("Expected Delete to succeed, but got: %s", err)
+	}
+}
+
+func TestParseFields(t *testing.T) {
+	expected := []string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}
+	actual := parseFieldNames(reflect.TypeOf(testUser{}))
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Actual fields didn't match expected fields")
+	}
+}
+
+func TestParseFieldsAndValues(t *testing.T) {
+	user := testUser{
+		Id:        1,
+		Name:      "AnyName",
+		Surname:   "AnySurname",
+		Birthdate: time.Now(),
+		CreatedAt: time.Now(),
+	}
+
+	expectedFields := []string{"Name", "Surname", "Birthdate", "CreatedAt"}
+	expectedValues := []any{user.Name, user.Surname, user.Birthdate, user.CreatedAt}
+	actualFields, actualValues := parseProperties(user, "UserId")
+
+	if !reflect.DeepEqual(expectedFields, actualFields) {
+		t.Fatalf("Actual fields didn't match expected fields")
+	} else if !reflect.DeepEqual(expectedValues, actualValues) {
+		t.Fatalf("Actual values didn't match expected values")
 	}
 }

@@ -16,7 +16,7 @@ type SqlRepository[T any] struct {
 }
 
 func (r SqlRepository[T]) Create(model T) error {
-	fields, values := r.parseFieldsAndValues(model)
+	fields, values := parseProperties(model, r.idFieldName)
 	sql := getInsertIntoStmt(r.tableName, fields...)
 
 	stmt, err := r.db.Preparex(sql)
@@ -41,13 +41,14 @@ func (r SqlRepository[T]) Create(model T) error {
 }
 
 func (r SqlRepository[T]) Read(id any) (*T, error) {
-	sql := getSelectFromStmt(r.tableName, r.idFieldName)
+	var result T
+	fields := parseFieldNames(reflect.TypeOf(result))
+	sql := getSelectFromStmt(r.tableName, r.idFieldName, fields...)
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
 	}
 
-	var result T
 	err = stmt.QueryRowx(id).StructScan(&result)
 	if err != nil {
 		return nil, err
@@ -57,13 +58,14 @@ func (r SqlRepository[T]) Read(id any) (*T, error) {
 }
 
 func (r SqlRepository[T]) ReadAll() ([]T, error) {
-	sql := getSelectFromStmt(r.tableName, "")
+	var result []T
+	fields := parseFieldNames(reflect.TypeOf(result).Elem())
+	sql := getSelectAllStmt(r.tableName, fields...)
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []T
 	err = stmt.Select(&result)
 	if err != nil {
 		return nil, err
@@ -73,7 +75,7 @@ func (r SqlRepository[T]) ReadAll() ([]T, error) {
 }
 
 func (r SqlRepository[T]) Update(id any, model T) error {
-	fields, values := r.parseFieldsAndValues(model)
+	fields, values := parseProperties(model, r.idFieldName)
 	sql := getUpdateStmt(r.tableName, r.idFieldName, fields...)
 
 	stmt, err := r.db.Preparex(sql)
@@ -121,17 +123,56 @@ func (r SqlRepository[T]) Delete(id any) error {
 	return nil
 }
 
-// parseFieldsAndValues reads the struct type T and returns its fields
+func NewSql[T any](db *sqlx.DB, tableName string, idFieldName string) (*SqlRepository[T], error) {
+	if db == nil {
+		return nil, fmt.Errorf("db cannot be nil")
+	}
+	if tableName == "" {
+		return nil, fmt.Errorf("tableName cannot be empty")
+	}
+	if idFieldName == "" {
+		idFieldName = "id"
+	}
+
+	return &SqlRepository[T]{
+		db:          db,
+		tableName:   tableName,
+		idFieldName: idFieldName,
+	}, nil
+}
+
+func parseFieldNames[T reflect.Type](typ T) []string {
+	numFields := typ.NumField()
+	fields := make([]string, numFields)
+
+	for i := 0; i < numFields; i++ {
+		field := typ.Field(i)
+		var name string
+
+		if tag := field.Tag.Get("db"); tag != "" {
+			name = tag
+		} else {
+			name = field.Name
+		}
+
+		fields[i] = name
+	}
+
+	return fields
+}
+
+// parseProperties reads the struct type T and returns its fields
 // and values as two slices. The slices are synchronized which means each
 // field and its corresponding value share the same index in both slices.
-func (r SqlRepository[T]) parseFieldsAndValues(model T) ([]string, []any) {
+// This method excludes the id field of T.
+func parseProperties[T any](model T, idFieldName string) ([]string, []any) {
 	val := reflect.ValueOf(&model).Elem()
-	numField := val.NumField() - 1
-	fields := make([]string, numField)
-	values := make([]any, numField)
+	numField := val.NumField()
+	fields := make([]string, numField-1)
+	values := make([]any, numField-1)
 
-	offset := 0
-	for i := 0; i < numField+1; i++ {
+	index := 0
+	for i := 0; i < numField; i++ {
 		field := val.Type().Field(i)
 		var name string
 
@@ -141,12 +182,12 @@ func (r SqlRepository[T]) parseFieldsAndValues(model T) ([]string, []any) {
 			name = field.Name
 		}
 
-		if name == r.idFieldName {
-			offset--
+		if name == idFieldName {
 			continue
 		}
-		fields[i+offset] = name
-		values[i+offset] = val.Field(i).Interface()
+		fields[index] = name
+		values[index] = val.Field(i).Interface()
+		index++
 	}
 
 	return fields, values

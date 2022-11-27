@@ -5,11 +5,12 @@ import (
 	"strings"
 )
 
-func getSelectFromStmt(tableName string, idFieldName string) string {
-	if idFieldName == "" {
-		return fmt.Sprintf("SELECT * FROM %s;", tableName)
-	}
-	return fmt.Sprintf("SELECT * FROM %s WHERE %s = ?;", tableName, idFieldName)
+func getSelectFromStmt(tableName string, idFieldName string, fields ...string) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = ?;", strings.Join(fields, ", "), tableName, idFieldName)
+}
+
+func getSelectAllStmt(tableName string, fields ...string) string {
+	return fmt.Sprintf("SELECT %s FROM %s;", strings.Join(fields, ", "), tableName)
 }
 
 func getInsertIntoStmt(tableName string, fields ...string) string {

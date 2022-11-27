@@ -1,8 +1,13 @@
 # dvbcrud-go
 
-Simple generic CRUD wrapper for `sqlx`.
+Simple and generic wrapper for `github.com/jmoiron/sqlx` that handle common CRUD queries as well as conversion between 
+rows and struct types. It does so through templating and reflection.
+
+This module is useful for rapidly developing 
 
 # Usage
+
+Below is a simple example on how to use `dvbcrud`. 
 
 ```go
 package example
@@ -14,21 +19,19 @@ import (
     "time"
 )
 
-type user struct {
-    Id        int `db:"UserId"`
+type User struct {
+    Id        uint64 `db:"UserId"`
     Name      string
     Birthdate time.Time
 }
 
 func main() {
-    db, _ := sqlx.Connect("mssql", "datasource") // err ignored for brevity
-    userRepo := dvbcrud.SqlRepository[user]{
-        db:          db,
-        tableName:   "Users",
-        idFieldName: "UserId",
-    }
+    // All errors are ignored for brevity
+    db, _ := sqlx.Connect("mssql", "datasource")
+    _ = db.Ping()
+    userRepo, _ := dvbcrud.NewSql[User](db, "Users", "UserId")
 
-    users, _ := userRepo.ReadAll() // err ignored for brevity
+    users, _ := userRepo.ReadAll()
 
     for _, u := range users {
         fmt.Printf("Hello, %s!\n", u.Name)

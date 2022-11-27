@@ -6,34 +6,34 @@ import (
 )
 
 func TestSelectAll(t *testing.T) {
-	actual := getSelectFromStmt("users", "")
-	expected := "SELECT * FROM users;"
+	actual := getSelectAllStmt("users", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
+	expected := "SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM users;"
 	if actual != expected {
-		t.Fatalf("getSelectFromStmt(\"users\", \"\") should be \"%s\" but was %s instead", expected, actual)
+		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
 	}
 }
 
 func TestSelectWhere(t *testing.T) {
-	actual := getSelectFromStmt("users", "id")
-	expected := "SELECT * FROM users WHERE id = ?;"
+	actual := getSelectFromStmt("users", "UserId", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
+	expected := "SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM users WHERE UserId = ?;"
 	if actual != expected {
-		t.Fatalf("getSelectFromStmt(\"users\", \"id\") should be \"%s\" but was %s instead", expected, actual)
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
 	}
 }
 
 func TestInsertInto(t *testing.T) {
-	actual := getInsertIntoStmt("users", "name", "surname", "birthdate", "created_at")
-	expected := "INSERT INTO users (name, surname, birthdate, created_at) VALUES (?, ?, ?, ?);"
+	actual := getInsertIntoStmt("users", "Name", "Surname", "Birthdate", "CreatedAt")
+	expected := "INSERT INTO users (Name, Surname, Birthdate, CreatedAt) VALUES (?, ?, ?, ?);"
 	if actual != expected {
-		t.Fatalf("getInsertIntoStmt(\"users\", \"name\", \"surname\", \"birthdate\", \"created_at\") should be \"%s\" but was %s instead", expected, actual)
+		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
 	}
 }
 
 func TestUpdate(t *testing.T) {
-	actual := getUpdateStmt("users", "id", "name", "surname", "birthdate", "created_at")
-	expected := "UPDATE users SET (name = ?, surname = ?, birthdate = ?, created_at = ?) WHERE id = ?;"
+	actual := getUpdateStmt("users", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
+	expected := "UPDATE users SET (Name = ?, Surname = ?, Birthdate = ?, CreatedAt = ?) WHERE UserId = ?;"
 	if actual != expected {
-		t.Fatalf("getUpdateStmt(\"users\", \"id\", \"name\", \"surname\", \"birthdate\", \"created_at\") should be \"%s\" but was %s instead", expected, actual)
+		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
 	}
 }
 
@@ -52,9 +52,9 @@ func TestUpdatePassByValue(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	actual := getDeleteFromStmt("users", "id")
-	expected := "DELETE FROM users WHERE id = ?;"
+	actual := getDeleteFromStmt("users", "UserId")
+	expected := "DELETE FROM users WHERE UserId = ?;"
 	if actual != expected {
-		t.Fatalf("getDeleteFromStmt(\"users\", \"id\") should be \"%s\" but was %s instead", expected, actual)
+		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
 	}
 }
