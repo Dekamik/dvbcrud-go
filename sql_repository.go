@@ -1,4 +1,4 @@
-package dvbcrud_go
+package dvbcrud
 
 import (
 	"errors"
