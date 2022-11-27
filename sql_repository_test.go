@@ -296,6 +296,77 @@ func TestSqlRepository_Update(t *testing.T) {
 	}
 }
 
+func TestSqlRepository_UpdateParsePropertiesErr(t *testing.T) {
+	repo, _, _, _ := newMock[parseCrashingType]()
+	expected := "parseCrashingType.id lacks a db tag"
+
+	model := parseCrashingType{}
+	actual := repo.Update(1, model)
+
+	if actual.Error() != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_UpdatePrepareErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := fmt.Errorf("any error")
+	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+		WillReturnError(expected)
+
+	actual := repo.Update(1, repoTestUser{})
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_UpdateExecErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := fmt.Errorf("any error")
+	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+		ExpectExec().
+		WillReturnError(expected)
+
+	actual := repo.Update(1, repoTestUser{})
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_UpdateRowsAffectedErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := fmt.Errorf("any error")
+	user := repoTestUser{}
+	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+		ExpectExec().
+		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, 1).
+		WillReturnResult(sqlmock.NewErrorResult(expected))
+
+	actual := repo.Update(1, repoTestUser{})
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_UpdateOtherThanOneRowAffected(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := "2 rows affected by UPDATE statement"
+	user := repoTestUser{}
+	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+		ExpectExec().
+		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, 1).
+		WillReturnResult(sqlmock.NewResult(1, 2))
+
+	actual := repo.Update(1, repoTestUser{})
+
+	if actual.Error() != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
 func TestSqlRepository_Delete(t *testing.T) {
 	repo, mockDb, mock, _ := newMock[repoTestUser]()
 	defer mockDb.Close()
