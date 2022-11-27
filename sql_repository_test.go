@@ -18,7 +18,7 @@ type repoTestUser struct {
 	CreatedAt time.Time `db:"CreatedAt"`
 }
 
-type crashParseProperties struct {
+type parseCrashingType struct {
 	id any
 }
 
@@ -53,10 +53,10 @@ func TestSqlRepository_Create(t *testing.T) {
 }
 
 func TestSqlRepository_CreateParsePropertiesErr(t *testing.T) {
-	repo, _, _, _ := newMock[crashParseProperties]()
-	expected := "crashParseProperties.id lacks a db tag"
+	repo, _, _, _ := newMock[parseCrashingType]()
+	expected := "parseCrashingType.id lacks a db tag"
 
-	model := crashParseProperties{}
+	model := parseCrashingType{}
 	actual := repo.Create(model)
 
 	if actual.Error() != expected {
@@ -149,6 +149,48 @@ func TestSqlRepository_Read(t *testing.T) {
 
 	if !reflect.DeepEqual(&expected, actual) {
 		t.Fatalf("Actual user must match expected user on Read")
+	}
+}
+
+func TestSqlRepository_ReadParsePropertiesErr(t *testing.T) {
+	repo, _, _, _ := newMock[parseCrashingType]()
+	expected := "parseCrashingType.id lacks a db tag"
+
+	_, actual := repo.Read(1)
+
+	if actual.Error() != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_ReadPrepareErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := fmt.Errorf("any error")
+	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?;$").
+		WillReturnError(expected)
+
+	_, actual := repo.Read(1)
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	}
+}
+
+func TestSqlRepository_ReadStructScanErr(t *testing.T) {
+	repo, _, mock, _ := newMock[repoTestUser]()
+	expected := "missing destination name AnyId in *dvbcrud.repoTestUser"
+
+	rows := sqlmock.NewRows([]string{"AnyId"}).
+		AddRow(1)
+	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?;$").
+		ExpectQuery().
+		WithArgs(1).
+		WillReturnRows(rows)
+
+	_, actual := repo.Read(1)
+
+	if actual.Error() != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
 	}
 }
 
