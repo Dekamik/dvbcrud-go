@@ -11,8 +11,7 @@ import (
 // T is the struct type that will be mapped against the table rows.
 type SQLRepository[T any] struct {
 	db          *sqlx.DB
-	dialect     SQLDialect
-	tableName   string
+	templates   sqlTemplates
 	idFieldName string
 }
 
@@ -23,7 +22,7 @@ func (r SQLRepository[T]) Create(model T) error {
 		return err
 	}
 
-	sql, err := getInsertIntoStmt(r.dialect, r.tableName, fields...)
+	sql, err := r.templates.GetInsert(fields)
 	if err != nil {
 		return err
 	}
@@ -52,23 +51,14 @@ func (r SQLRepository[T]) Create(model T) error {
 
 // Read fetches a row from the table whose ID matches id.
 func (r SQLRepository[T]) Read(id any) (*T, error) {
-	var result T
-	fields, err := internal.ParseFieldNames(reflect.TypeOf(result))
-	if err != nil {
-		return nil, err
-	}
-
-	sql, err := getSelectFromStmt(r.dialect, r.tableName, r.idFieldName, fields...)
-	if err != nil {
-		return nil, err
-	}
-
+	sql := r.templates.GetSelect()
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
+	var result T
 	err = stmt.QueryRowx(id).StructScan(&result)
 	if err != nil {
 		return nil, err
@@ -79,19 +69,14 @@ func (r SQLRepository[T]) Read(id any) (*T, error) {
 
 // ReadAll fetches all rows from the table.
 func (r SQLRepository[T]) ReadAll() ([]T, error) {
-	var result []T
-	fields, err := internal.ParseFieldNames(reflect.TypeOf(result).Elem())
-	if err != nil {
-		return nil, err
-	}
-
-	sql := getSelectAllStmt(r.tableName, fields...)
+	sql := r.templates.GetSelectAll()
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
+	var result []T
 	err = stmt.Select(&result)
 	if err != nil {
 		return nil, err
@@ -107,7 +92,7 @@ func (r SQLRepository[T]) Update(id any, model T) error {
 		return err
 	}
 
-	sql, err := getUpdateStmt(r.dialect, r.tableName, r.idFieldName, fields...)
+	sql, err := r.templates.GetUpdate(fields)
 	if err != nil {
 		return err
 	}
@@ -137,11 +122,7 @@ func (r SQLRepository[T]) Update(id any, model T) error {
 
 // Delete removes the row whose ID matches id.
 func (r SQLRepository[T]) Delete(id any) error {
-	sql, err := getDeleteFromStmt(r.dialect, r.tableName, r.idFieldName)
-	if err != nil {
-		return err
-	}
-
+	sql := r.templates.GetDelete()
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return err
@@ -164,8 +145,8 @@ func (r SQLRepository[T]) Delete(id any) error {
 	return nil
 }
 
-// NewSQLRepository creates and returns a new SQLRepository.
-func NewSQLRepository[T any](db *sqlx.DB, dialect SQLDialect, tableName string, idFieldName string) (*SQLRepository[T], error) {
+// New creates and returns a new SQLRepository.
+func New[T any](db *sqlx.DB, dialect SQLDialect, tableName string, idFieldName string) (*SQLRepository[T], error) {
 	if db == nil {
 		return nil, fmt.Errorf("db cannot be nil")
 	}
@@ -176,10 +157,17 @@ func NewSQLRepository[T any](db *sqlx.DB, dialect SQLDialect, tableName string, 
 		idFieldName = "id"
 	}
 
+	var hack T
+	fields, err := internal.ParseFieldNames(reflect.TypeOf(hack))
+	if err != nil {
+		return nil, err
+	}
+
+	paramGen := internal.NewSQLParamGen(dialect)
+	statementGen, err := newSQLTemplates(paramGen, tableName, idFieldName, fields)
+
 	return &SQLRepository[T]{
-		db:          db,
-		dialect:     dialect,
-		tableName:   tableName,
-		idFieldName: idFieldName,
+		db:        db,
+		templates: statementGen,
 	}, nil
 }

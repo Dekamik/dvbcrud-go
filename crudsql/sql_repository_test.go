@@ -559,10 +559,10 @@ func TestNewSqlEmptyIdFieldName(t *testing.T) {
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
 	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, MySQL, "users", "")
 	if repo == nil {
-		t.Fatalf("Expected a repo on empty idFieldName")
+		t.Fatalf("Expected a repo on empty idField")
 	}
 
 	if repo.idFieldName != "id" {
-		t.Fatalf("Expected idFieldName to be \"id\"")
+		t.Fatalf("Expected idField to be \"id\"")
 	}
 }
