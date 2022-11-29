@@ -14,7 +14,7 @@ func TestSelectAll(t *testing.T) {
 }
 
 func TestSelectWhere(t *testing.T) {
-	actual := getSelectFromStmt("users", "UserId", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
+	actual, _ := getSelectFromStmt(MySQL, "users", "UserId", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
 	expected := "SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM users WHERE UserId = ?;"
 	if actual != expected {
 		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
@@ -22,7 +22,7 @@ func TestSelectWhere(t *testing.T) {
 }
 
 func TestInsertInto(t *testing.T) {
-	actual := getInsertIntoStmt("users", "Name", "Surname", "Birthdate", "CreatedAt")
+	actual, _ := getInsertIntoStmt(MySQL, "users", "Name", "Surname", "Birthdate", "CreatedAt")
 	expected := "INSERT INTO users (Name, Surname, Birthdate, CreatedAt) VALUES (?, ?, ?, ?);"
 	if actual != expected {
 		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
@@ -30,7 +30,7 @@ func TestInsertInto(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	actual := getUpdateStmt("users", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
+	actual, _ := getUpdateStmt(MySQL, "users", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
 	expected := "UPDATE users SET (Name = ?, Surname = ?, Birthdate = ?, CreatedAt = ?) WHERE UserId = ?;"
 	if actual != expected {
 		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
@@ -45,14 +45,14 @@ func TestUpdatePassByValue(t *testing.T) {
 		"created_at",
 	}
 	fieldsCopy := fields
-	_ = getUpdateStmt("users", "id", fieldsCopy...)
+	_, _ = getUpdateStmt(MySQL, "users", "id", fieldsCopy...)
 	if !reflect.DeepEqual(fields, fieldsCopy) {
 		t.Fatalf("getUpdateStmt mustn't mutate fields array")
 	}
 }
 
 func TestDelete(t *testing.T) {
-	actual := getDeleteFromStmt("users", "UserId")
+	actual, _ := getDeleteFromStmt(MySQL, "users", "UserId")
 	expected := "DELETE FROM users WHERE UserId = ?;"
 	if actual != expected {
 		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)

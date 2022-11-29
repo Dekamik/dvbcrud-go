@@ -6,20 +6,24 @@ import (
 	"reflect"
 )
 
-// SqlRepository handles queries to a table in an SQL database.
+// SQLRepository handles CRUD queries to a table in an SQL database.
 // T is the struct type that will be mapped against the table rows.
-type SqlRepository[T any] struct {
+type SQLRepository[T any] struct {
 	db          *sqlx.DB
+	dialect     SQLDialect
 	tableName   string
 	idFieldName string
 }
 
-func (r SqlRepository[T]) Create(model T) error {
+func (r SQLRepository[T]) Create(model T) error {
 	fields, values, err := parseProperties(model, r.idFieldName)
 	if err != nil {
 		return err
 	}
-	sql := getInsertIntoStmt(r.tableName, fields...)
+	sql, err := getInsertIntoStmt(r.dialect, r.tableName, fields...)
+	if err != nil {
+		return err
+	}
 
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
@@ -42,14 +46,18 @@ func (r SqlRepository[T]) Create(model T) error {
 	return nil
 }
 
-func (r SqlRepository[T]) Read(id any) (*T, error) {
+func (r SQLRepository[T]) Read(id any) (*T, error) {
 	var result T
 	fields, err := parseFieldNames(reflect.TypeOf(result))
 	if err != nil {
 		return nil, err
 	}
 
-	sql := getSelectFromStmt(r.tableName, r.idFieldName, fields...)
+	sql, err := getSelectFromStmt(r.dialect, r.tableName, r.idFieldName, fields...)
+	if err != nil {
+		return nil, err
+	}
+
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return nil, err
@@ -63,7 +71,7 @@ func (r SqlRepository[T]) Read(id any) (*T, error) {
 	return &result, nil
 }
 
-func (r SqlRepository[T]) ReadAll() ([]T, error) {
+func (r SQLRepository[T]) ReadAll() ([]T, error) {
 	var result []T
 	fields, err := parseFieldNames(reflect.TypeOf(result).Elem())
 	if err != nil {
@@ -84,12 +92,15 @@ func (r SqlRepository[T]) ReadAll() ([]T, error) {
 	return result, nil
 }
 
-func (r SqlRepository[T]) Update(id any, model T) error {
+func (r SQLRepository[T]) Update(id any, model T) error {
 	fields, values, err := parseProperties(model, r.idFieldName)
 	if err != nil {
 		return err
 	}
-	sql := getUpdateStmt(r.tableName, r.idFieldName, fields...)
+	sql, err := getUpdateStmt(r.dialect, r.tableName, r.idFieldName, fields...)
+	if err != nil {
+		return err
+	}
 
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
@@ -113,8 +124,12 @@ func (r SqlRepository[T]) Update(id any, model T) error {
 	return nil
 }
 
-func (r SqlRepository[T]) Delete(id any) error {
-	sql := getDeleteFromStmt(r.tableName, r.idFieldName)
+func (r SQLRepository[T]) Delete(id any) error {
+	sql, err := getDeleteFromStmt(r.dialect, r.tableName, r.idFieldName)
+	if err != nil {
+		return err
+	}
+
 	stmt, err := r.db.Preparex(sql)
 	if err != nil {
 		return err
@@ -136,7 +151,7 @@ func (r SqlRepository[T]) Delete(id any) error {
 	return nil
 }
 
-func NewSql[T any](db *sqlx.DB, tableName string, idFieldName string) (*SqlRepository[T], error) {
+func NewSQLRepository[T any](db *sqlx.DB, dialect SQLDialect, tableName string, idFieldName string) (*SQLRepository[T], error) {
 	if db == nil {
 		return nil, fmt.Errorf("db cannot be nil")
 	}
@@ -147,8 +162,9 @@ func NewSql[T any](db *sqlx.DB, tableName string, idFieldName string) (*SqlRepos
 		idFieldName = "id"
 	}
 
-	return &SqlRepository[T]{
+	return &SQLRepository[T]{
 		db:          db,
+		dialect:     dialect,
 		tableName:   tableName,
 		idFieldName: idFieldName,
 	}, nil

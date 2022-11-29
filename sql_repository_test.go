@@ -22,10 +22,10 @@ type parseCrashingType struct {
 	id any
 }
 
-func newMock[T any]() (*SqlRepository[T], *sql.DB, sqlmock.Sqlmock, error) {
+func newMock[T any]() (*SQLRepository[T], *sql.DB, sqlmock.Sqlmock, error) {
 	mockDb, mock, err := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repo, _ := NewSql[T](sqlxDb, "Users", "UserId")
+	repo, _ := NewSQLRepository[T](sqlxDb, MySQL, "Users", "UserId")
 	return repo, mockDb, mock, err
 }
 
@@ -442,7 +442,7 @@ func TestSqlRepository_DeleteOtherThanOneRowAffected(t *testing.T) {
 func TestNewSql(t *testing.T) {
 	mockDb, _, _ := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repo, _ := NewSql[repoTestUser](sqlxDb, "Users", "UserId")
+	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, MySQL, "Users", "UserId")
 
 	if repo == nil {
 		t.Fatalf("Expected a repo, but got nil instead")
@@ -450,7 +450,7 @@ func TestNewSql(t *testing.T) {
 }
 
 func TestNewSqlNilDb(t *testing.T) {
-	_, err := NewSql[repoTestUser](nil, "users", "UserId")
+	_, err := NewSQLRepository[repoTestUser](nil, MySQL, "users", "UserId")
 	if err == nil {
 		t.Fatalf("Expected error on nil db")
 	}
@@ -464,7 +464,7 @@ func TestNewSqlNilDb(t *testing.T) {
 func TestNewSqlEmptyTableName(t *testing.T) {
 	mockDb, _, _ := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	_, err := NewSql[repoTestUser](sqlxDb, "", "UserId")
+	_, err := NewSQLRepository[repoTestUser](sqlxDb, MySQL, "", "UserId")
 	if err == nil {
 		t.Fatalf("Expected error on empty table name")
 	}
@@ -478,7 +478,7 @@ func TestNewSqlEmptyTableName(t *testing.T) {
 func TestNewSqlEmptyIdFieldName(t *testing.T) {
 	mockDb, _, _ := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repo, _ := NewSql[repoTestUser](sqlxDb, "users", "")
+	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, MySQL, "users", "")
 	if repo == nil {
 		t.Fatalf("Expected a repo on empty idFieldName")
 	}
