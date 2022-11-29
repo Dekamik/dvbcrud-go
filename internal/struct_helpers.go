@@ -1,11 +1,11 @@
-package dvbcrud
+package internal
 
 import (
 	"fmt"
 	"reflect"
 )
 
-func parseFieldNames(typ reflect.Type) ([]string, error) {
+func ParseFieldNames(typ reflect.Type) ([]string, error) {
 	if typ.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("type must be a kind of struct")
 	}
@@ -25,7 +25,7 @@ func parseFieldNames(typ reflect.Type) ([]string, error) {
 	return fields, nil
 }
 
-// parseProperties reads the struct type T and returns its fields
+// ParseProperties reads the struct type T and returns its fields
 // and values as two slices. The slices are guaranteed to match indices.
 //
 // Separating the properties into fields and values slices is required
@@ -33,7 +33,7 @@ func parseFieldNames(typ reflect.Type) ([]string, error) {
 //
 // Specifying idFieldName filters out that field in the resulting slices,
 // which is necessary in INSERTS and UPDATES.
-func parseProperties(model any, idFieldName string) ([]string, []any, error) {
+func ParseProperties(model any, idFieldName string) ([]string, []any, error) {
 	val := reflect.ValueOf(model)
 	if val.Kind() != reflect.Struct {
 		return nil, nil, fmt.Errorf("model must be a struct type")

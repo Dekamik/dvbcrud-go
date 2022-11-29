@@ -1,7 +1,8 @@
-package dvbcrud
+package crudsql
 
 import (
 	"fmt"
+	"github.com/dekamik/dvbcrud-go/internal"
 	"github.com/jmoiron/sqlx"
 	"reflect"
 )
@@ -15,11 +16,13 @@ type SQLRepository[T any] struct {
 	idFieldName string
 }
 
+// Create inserts the values in model into a new row in the table.
 func (r SQLRepository[T]) Create(model T) error {
-	fields, values, err := parseProperties(model, r.idFieldName)
+	fields, values, err := internal.ParseProperties(model, r.idFieldName)
 	if err != nil {
 		return err
 	}
+
 	sql, err := getInsertIntoStmt(r.dialect, r.tableName, fields...)
 	if err != nil {
 		return err
@@ -29,6 +32,7 @@ func (r SQLRepository[T]) Create(model T) error {
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
 	exec, err := stmt.Exec(values...)
 	if err != nil {
@@ -46,9 +50,10 @@ func (r SQLRepository[T]) Create(model T) error {
 	return nil
 }
 
+// Read fetches a row from the table whose ID matches id.
 func (r SQLRepository[T]) Read(id any) (*T, error) {
 	var result T
-	fields, err := parseFieldNames(reflect.TypeOf(result))
+	fields, err := internal.ParseFieldNames(reflect.TypeOf(result))
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +67,7 @@ func (r SQLRepository[T]) Read(id any) (*T, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer stmt.Close()
 
 	err = stmt.QueryRowx(id).StructScan(&result)
 	if err != nil {
@@ -71,9 +77,10 @@ func (r SQLRepository[T]) Read(id any) (*T, error) {
 	return &result, nil
 }
 
+// ReadAll fetches all rows from the table.
 func (r SQLRepository[T]) ReadAll() ([]T, error) {
 	var result []T
-	fields, err := parseFieldNames(reflect.TypeOf(result).Elem())
+	fields, err := internal.ParseFieldNames(reflect.TypeOf(result).Elem())
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +90,7 @@ func (r SQLRepository[T]) ReadAll() ([]T, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer stmt.Close()
 
 	err = stmt.Select(&result)
 	if err != nil {
@@ -92,11 +100,13 @@ func (r SQLRepository[T]) ReadAll() ([]T, error) {
 	return result, nil
 }
 
+// Update updates the row in the table, whose ID matches id, with the data found in model.
 func (r SQLRepository[T]) Update(id any, model T) error {
-	fields, values, err := parseProperties(model, r.idFieldName)
+	fields, values, err := internal.ParseProperties(model, r.idFieldName)
 	if err != nil {
 		return err
 	}
+
 	sql, err := getUpdateStmt(r.dialect, r.tableName, r.idFieldName, fields...)
 	if err != nil {
 		return err
@@ -106,6 +116,7 @@ func (r SQLRepository[T]) Update(id any, model T) error {
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
 	allValues := append(values, id)
 	exec, err := stmt.Exec(allValues...)
@@ -124,6 +135,7 @@ func (r SQLRepository[T]) Update(id any, model T) error {
 	return nil
 }
 
+// Delete removes the row whose ID matches id.
 func (r SQLRepository[T]) Delete(id any) error {
 	sql, err := getDeleteFromStmt(r.dialect, r.tableName, r.idFieldName)
 	if err != nil {
@@ -134,6 +146,7 @@ func (r SQLRepository[T]) Delete(id any) error {
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
 	exec, err := stmt.Exec(id)
 	if err != nil {
@@ -151,6 +164,7 @@ func (r SQLRepository[T]) Delete(id any) error {
 	return nil
 }
 
+// NewSQLRepository creates and returns a new SQLRepository.
 func NewSQLRepository[T any](db *sqlx.DB, dialect SQLDialect, tableName string, idFieldName string) (*SQLRepository[T], error) {
 	if db == nil {
 		return nil, fmt.Errorf("db cannot be nil")
