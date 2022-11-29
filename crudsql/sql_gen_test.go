@@ -5,6 +5,69 @@ import (
 	"testing"
 )
 
+func TestGetParamPlaceholdersMySQL(t *testing.T) {
+	expected := []string{"?", "?", "?"}
+	actual, _ := getParamPlaceholders(MySQL, Columns, 3)
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestGetParamPlaceholdersPostgreSQL(t *testing.T) {
+	expected := []string{"$1", "$2", "$3"}
+	actual, _ := getParamPlaceholders(PostgreSQL, Columns, 3)
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestGetParamPlaceholdersOracleCol(t *testing.T) {
+	expected := []string{":col1", ":col2", ":col3"}
+	actual, _ := getParamPlaceholders(Oracle, Columns, 3)
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestGetParamPlaceholdersOracleVal(t *testing.T) {
+	expected := []string{":val1", ":val2", ":val3"}
+	actual, _ := getParamPlaceholders(Oracle, Values, 3)
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestGetParamPlaceholdersOracleColSingle(t *testing.T) {
+	expected := []string{":col"}
+	actual, _ := getParamPlaceholders(Oracle, Columns, 1)
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestGetParamPlaceholdersOracleValSingle(t *testing.T) {
+	expected := []string{":val"}
+	actual, _ := getParamPlaceholders(Oracle, Values, 1)
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestGetParamPlaceholdersUnknownDialect(t *testing.T) {
+	expected := "unknown dialect"
+	_, actual := getParamPlaceholders(-1, Columns, 1)
+
+	if actual.Error() != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\"", expected, actual)
+	}
+}
+
 func TestSelectAll(t *testing.T) {
 	actual := getSelectAllStmt("users", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
 	expected := "SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM users"

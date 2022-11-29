@@ -104,10 +104,8 @@ func getUpdateStmt(dialect SQLDialect, tableName string, idFieldName string, fie
 		return "", err
 	}
 
-	valuePlaceholders, err := getParamPlaceholders(dialect, Values, len(fields))
-	if err != nil {
-		return "", err
-	}
+	// Not handling this error because the same code is run above
+	valuePlaceholders, _ := getParamPlaceholders(dialect, Values, len(fields))
 
 	for i := range fields {
 		fields[i] += " = " + valuePlaceholders[i]
