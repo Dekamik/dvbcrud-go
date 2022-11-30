@@ -1,8 +1,7 @@
-package crudsql
+package dvbcrud
 
 import (
 	"fmt"
-	"github.com/dekamik/dvbcrud-go/internal"
 	"github.com/jmoiron/sqlx"
 	"reflect"
 )
@@ -10,14 +9,22 @@ import (
 // SQLRepository handles CRUD queries to a table in an SQL database.
 // T is the struct type that will be mapped against the table rows.
 type SQLRepository[T any] struct {
-	db          *sqlx.DB
-	templates   sqlTemplates
-	idFieldName string
+	db           *sqlx.DB
+	templates    sqlTemplates
+	structParser StructParser
+	idField      string
+}
+
+type SQLRepositoryConfig struct {
+	dialect SQLDialect
+	table   string
+	idField string
+	fields  []string
 }
 
 // Create inserts the values in model into a new row in the table.
 func (r SQLRepository[T]) Create(model T) error {
-	fields, values, err := internal.ParseProperties(model, r.idFieldName)
+	fields, values, err := r.structParser.ParseProperties(model, r.idField)
 	if err != nil {
 		return err
 	}
@@ -87,7 +94,7 @@ func (r SQLRepository[T]) ReadAll() ([]T, error) {
 
 // Update updates the row in the table, whose ID matches id, with the data found in model.
 func (r SQLRepository[T]) Update(id any, model T) error {
-	fields, values, err := internal.ParseProperties(model, r.idFieldName)
+	fields, values, err := r.structParser.ParseProperties(model, r.idField)
 	if err != nil {
 		return err
 	}
@@ -146,29 +153,35 @@ func (r SQLRepository[T]) Delete(id any) error {
 }
 
 // New creates and returns a new SQLRepository.
-func New[T any](db *sqlx.DB, dialect SQLDialect, tableName string, idFieldName string) (*SQLRepository[T], error) {
+func New[T any](db *sqlx.DB, config SQLRepositoryConfig) (*SQLRepository[T], error) {
 	if db == nil {
 		return nil, fmt.Errorf("db cannot be nil")
 	}
-	if tableName == "" {
-		return nil, fmt.Errorf("tableName cannot be empty")
-	}
-	if idFieldName == "" {
-		idFieldName = "id"
+	if config.table == "" {
+		return nil, fmt.Errorf("table cannot be empty")
 	}
 
+	idField := config.idField
+	if idField == "" {
+		idField = "id"
+	}
+
+	structParser := NewStructParser()
+
 	var hack T
-	fields, err := internal.ParseFieldNames(reflect.TypeOf(hack))
+	fields, err := structParser.ParseFieldNames(reflect.TypeOf(hack))
 	if err != nil {
 		return nil, err
 	}
 
-	paramGen := NewSQLParamGen(dialect)
-	statementGen, err := newSQLTemplates(paramGen, tableName, idFieldName, fields)
+	paramGen := newSQLParamGen(config.dialect)
+	sqlGen := newSQLGenerator(paramGen)
+	statementGen, err := newSQLTemplates(sqlGen, config.table, idField, fields)
 
 	return &SQLRepository[T]{
-		db:          db,
-		templates:   statementGen,
-		idFieldName: idFieldName,
+		db:           db,
+		templates:    statementGen,
+		structParser: structParser,
+		idField:      idField,
 	}, nil
 }

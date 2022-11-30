@@ -1,4 +1,4 @@
-package internal
+package dvbcrud
 
 import (
 	"reflect"
@@ -22,8 +22,9 @@ type testMissingTagAddress struct {
 }
 
 func TestParseFieldNames(t *testing.T) {
+	parser := NewStructParser()
 	expected := []string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}
-	actual, _ := ParseFieldNames(reflect.TypeOf(structTestUser{}))
+	actual, _ := parser.ParseFieldNames(reflect.TypeOf(structTestUser{}))
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("Actual fields didn't match expected fields")
@@ -31,7 +32,8 @@ func TestParseFieldNames(t *testing.T) {
 }
 
 func TestParseFieldNamesNonStructType(t *testing.T) {
-	_, err := ParseFieldNames(reflect.TypeOf([]int{}))
+	parser := NewStructParser()
+	_, err := parser.ParseFieldNames(reflect.TypeOf([]int{}))
 	if err == nil {
 		t.Fatalf("Expected error on non-struct type")
 	}
@@ -42,7 +44,8 @@ func TestParseFieldNamesNonStructType(t *testing.T) {
 }
 
 func TestParseFieldNamesMissingTag(t *testing.T) {
-	_, err := ParseFieldNames(reflect.TypeOf(testMissingTagAddress{}))
+	parser := NewStructParser()
+	_, err := parser.ParseFieldNames(reflect.TypeOf(testMissingTagAddress{}))
 	if err == nil {
 		t.Fatalf("Expected error on missing tag")
 	}
@@ -53,6 +56,7 @@ func TestParseFieldNamesMissingTag(t *testing.T) {
 }
 
 func TestParseProperties(t *testing.T) {
+	parser := NewStructParser()
 	user := structTestUser{
 		ID:        1,
 		Name:      "AnyName",
@@ -63,7 +67,7 @@ func TestParseProperties(t *testing.T) {
 
 	expectedFields := []string{"Name", "Surname", "Birthdate", "CreatedAt"}
 	expectedValues := []any{user.Name, user.Surname, user.Birthdate, user.CreatedAt}
-	actualFields, actualValues, _ := ParseProperties(user, "UserId")
+	actualFields, actualValues, _ := parser.ParseProperties(user, "UserId")
 
 	if !reflect.DeepEqual(expectedFields, actualFields) {
 		t.Fatalf("Actual fields didn't match expected fields")
@@ -73,8 +77,9 @@ func TestParseProperties(t *testing.T) {
 }
 
 func TestParsePropertiesNonStructType(t *testing.T) {
+	parser := NewStructParser()
 	test := []string{"one"}
-	_, _, err := ParseProperties(test, "")
+	_, _, err := parser.ParseProperties(test, "")
 	if err == nil {
 		t.Fatalf("Expected error on non-struct type")
 	}
@@ -85,13 +90,14 @@ func TestParsePropertiesNonStructType(t *testing.T) {
 }
 
 func TestParsePropertiesMissingTag(t *testing.T) {
+	parser := NewStructParser()
 	address := testMissingTagAddress{
 		ID:      0,
 		Address: "",
 		ZipCode: "",
 		City:    "",
 	}
-	_, _, err := ParseProperties(address, "address_id")
+	_, _, err := parser.ParseProperties(address, "address_id")
 	if err == nil {
 		t.Fatalf("Expected error on missing tag")
 	}

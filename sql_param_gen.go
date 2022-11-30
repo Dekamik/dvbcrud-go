@@ -1,4 +1,4 @@
-package crudsql
+package dvbcrud
 
 import (
 	"fmt"
@@ -13,19 +13,19 @@ const (
 	Values
 )
 
-type paramGen interface {
+type sqlParameterGenerator interface {
 	GetParamPlaceholders(amount int, typ paramType) ([]string, error)
 }
 
-type paramGenImpl struct {
-	paramGen
+type sqlParameterGeneratorImpl struct {
+	sqlParameterGenerator
 	dialect SQLDialect
 }
 
 // GetParamPlaceholders returns n amount of parameter placeholders as an array of strings.
 // The placeholders are formatted according to the chosen dialect.
 // (e.g. MySQL-like = ?, PostgreSQL = $1, Oracle = :col1 or :var1)
-func (p paramGenImpl) GetParamPlaceholders(amount int, typ paramType) ([]string, error) {
+func (p sqlParameterGeneratorImpl) GetParamPlaceholders(amount int, typ paramType) ([]string, error) {
 	placeholders := make([]string, amount)
 
 	switch p.dialect {
@@ -61,8 +61,8 @@ func (p paramGenImpl) GetParamPlaceholders(amount int, typ paramType) ([]string,
 	return placeholders, nil
 }
 
-func NewSQLParamGen(dialect SQLDialect) paramGen {
-	return paramGenImpl{
+func newSQLParamGen(dialect SQLDialect) sqlParameterGenerator {
+	return sqlParameterGeneratorImpl{
 		dialect: dialect,
 	}
 }

@@ -1,4 +1,4 @@
-package crudsql
+package dvbcrud
 
 import (
 	"reflect"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestParamGenImpl_GetParamPlaceholdersMySQL(t *testing.T) {
-	gen := NewSQLParamGen(MySQL)
+	gen := newSQLParamGen(MySQL)
 	expected := []string{"?", "?", "?"}
 
 	actual, _ := gen.GetParamPlaceholders(3, Columns)
@@ -17,7 +17,7 @@ func TestParamGenImpl_GetParamPlaceholdersMySQL(t *testing.T) {
 }
 
 func TestParamGenImpl_GetParamPlaceholdersPostgreSQL(t *testing.T) {
-	gen := NewSQLParamGen(PostgreSQL)
+	gen := newSQLParamGen(PostgreSQL)
 	expected := []string{"$1", "$2", "$3"}
 
 	actual, _ := gen.GetParamPlaceholders(3, Columns)
@@ -28,7 +28,7 @@ func TestParamGenImpl_GetParamPlaceholdersPostgreSQL(t *testing.T) {
 }
 
 func TestParamGenImpl_GetParamPlaceholdersOracleCol(t *testing.T) {
-	gen := NewSQLParamGen(Oracle)
+	gen := newSQLParamGen(Oracle)
 	expected := []string{":col1", ":col2", ":col3"}
 
 	actual, _ := gen.GetParamPlaceholders(3, Columns)
@@ -39,7 +39,7 @@ func TestParamGenImpl_GetParamPlaceholdersOracleCol(t *testing.T) {
 }
 
 func TestGetParamPlaceholdersOracleVal(t *testing.T) {
-	gen := NewSQLParamGen(Oracle)
+	gen := newSQLParamGen(Oracle)
 	expected := []string{":val1", ":val2", ":val3"}
 
 	actual, _ := gen.GetParamPlaceholders(3, Values)
@@ -50,7 +50,7 @@ func TestGetParamPlaceholdersOracleVal(t *testing.T) {
 }
 
 func TestGetParamPlaceholdersOracleColSingle(t *testing.T) {
-	gen := NewSQLParamGen(Oracle)
+	gen := newSQLParamGen(Oracle)
 	expected := []string{":col"}
 
 	actual, _ := gen.GetParamPlaceholders(1, Columns)
@@ -61,7 +61,7 @@ func TestGetParamPlaceholdersOracleColSingle(t *testing.T) {
 }
 
 func TestGetParamPlaceholdersOracleValSingle(t *testing.T) {
-	gen := NewSQLParamGen(Oracle)
+	gen := newSQLParamGen(Oracle)
 	expected := []string{":val"}
 
 	actual, _ := gen.GetParamPlaceholders(1, Values)
@@ -72,7 +72,7 @@ func TestGetParamPlaceholdersOracleValSingle(t *testing.T) {
 }
 
 func TestGetParamPlaceholdersUnknownDialect(t *testing.T) {
-	gen := NewSQLParamGen(-1)
+	gen := newSQLParamGen(-1)
 	expected := "unknown dialect"
 
 	_, actual := gen.GetParamPlaceholders(1, Columns)

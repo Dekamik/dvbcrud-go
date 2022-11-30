@@ -1,11 +1,30 @@
-package internal
+package dvbcrud
 
 import (
 	"fmt"
 	"reflect"
 )
 
-func ParseFieldNames(typ reflect.Type) ([]string, error) {
+type StructParser interface {
+	// ParseFieldNames TODO: write docs
+	ParseFieldNames(typ reflect.Type) ([]string, error)
+
+	// ParseProperties reads the struct type T and returns its fields
+	// and values as two slices. The slices are guaranteed to match indices.
+	//
+	// Separating the properties into fields and values slices is required
+	// when formatting and preparing statements.
+	//
+	// Specifying idFieldName filters out that field in the resulting slices,
+	// which is necessary in INSERTS and UPDATES.
+	ParseProperties(model any, idFieldName string) ([]string, []any, error)
+}
+
+type structParserImpl struct {
+	StructParser
+}
+
+func (s structParserImpl) ParseFieldNames(typ reflect.Type) ([]string, error) {
 	if typ.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("type must be a kind of struct")
 	}
@@ -25,15 +44,7 @@ func ParseFieldNames(typ reflect.Type) ([]string, error) {
 	return fields, nil
 }
 
-// ParseProperties reads the struct type T and returns its fields
-// and values as two slices. The slices are guaranteed to match indices.
-//
-// Separating the properties into fields and values slices is required
-// when formatting and preparing statements.
-//
-// Specifying idFieldName filters out that field in the resulting slices,
-// which is necessary in INSERTS and UPDATES.
-func ParseProperties(model any, idFieldName string) ([]string, []any, error) {
+func (s structParserImpl) ParseProperties(model any, idFieldName string) ([]string, []any, error) {
 	val := reflect.ValueOf(model)
 	if val.Kind() != reflect.Struct {
 		return nil, nil, fmt.Errorf("model must be a struct type")
@@ -59,4 +70,8 @@ func ParseProperties(model any, idFieldName string) ([]string, []any, error) {
 	}
 
 	return fields, values, nil
+}
+
+func NewStructParser() StructParser {
+	return &structParserImpl{}
 }

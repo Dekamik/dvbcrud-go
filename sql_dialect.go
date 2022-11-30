@@ -1,4 +1,4 @@
-package crudsql
+package dvbcrud
 
 // SQLDialect denotes the different dialects which define placeholders differently.
 type SQLDialect int

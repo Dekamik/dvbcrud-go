@@ -1,4 +1,4 @@
-package crudsql
+package dvbcrud
 
 import (
 	"database/sql"
@@ -25,7 +25,13 @@ type parseCrashingType struct {
 func newMock[T any]() (*SQLRepository[T], *sql.DB, sqlmock.Sqlmock, error) {
 	mockDB, mock, err := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := New[T](sqlxDb, MySQL, "Users", "UserId")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "Users",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	repo, _ := New[T](sqlxDb, config)
 	repo.templates = sqlTemplatesMock{}
 	return repo, mockDB, mock, err
 }
@@ -62,7 +68,13 @@ func TestSQLRepository_CreateGetSqlErr(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := New[repoTestUser](sqlxDb, -1, "Users", "UserId")
+	config := SQLRepositoryConfig{
+		dialect: -1,
+		table:   "Users",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	repo, _ := New[repoTestUser](sqlxDb, config)
 	expected := fmt.Errorf("AnyError")
 	repo.templates = sqlTemplatesMock{
 		GetInsertMock: func(fields []string) (string, error) {
@@ -221,7 +233,7 @@ func TestSqlRepository_ReadStructScanErr(t *testing.T) {
 			return "AnySelect"
 		},
 	}
-	expected := "missing destination name AnyId in *crudsql.repoTestUser"
+	expected := "missing destination name AnyId in *dvbcrud.repoTestUser"
 
 	rows := sqlmock.NewRows([]string{"AnyId"}).
 		AddRow(1)
@@ -307,7 +319,7 @@ func TestSqlRepository_ReadAllStructScanErr(t *testing.T) {
 			return "AnySelectAll"
 		},
 	}
-	expected := "missing destination name AnyId in *[]crudsql.repoTestUser"
+	expected := "missing destination name AnyId in *[]dvbcrud.repoTestUser"
 
 	rows := sqlmock.NewRows([]string{"AnyId"}).
 		AddRow(1)
@@ -355,7 +367,13 @@ func TestSQLRepository_UpdateGetSqlErr(t *testing.T) {
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
 	expected := fmt.Errorf("AnyError")
-	repo, _ := New[repoTestUser](sqlxDb, -1, "Users", "UserId")
+	config := SQLRepositoryConfig{
+		dialect: -1,
+		table:   "Users",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	repo, _ := New[repoTestUser](sqlxDb, config)
 	repo.templates = sqlTemplatesMock{
 		GetUpdateMock: func(fields []string) (string, error) {
 			return "", expected
@@ -557,7 +575,13 @@ func TestNew(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := New[repoTestUser](sqlxDb, MySQL, "Users", "UserId")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "Users",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	repo, _ := New[repoTestUser](sqlxDb, config)
 
 	if repo == nil {
 		t.Fatalf("Expected a repo, but got nil instead")
@@ -565,7 +589,13 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewNilDb(t *testing.T) {
-	_, err := New[repoTestUser](nil, MySQL, "users", "UserId")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "Users",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	_, err := New[repoTestUser](nil, config)
 	if err == nil {
 		t.Fatalf("Expected error on nil db")
 	}
@@ -580,12 +610,18 @@ func TestNewEmptyTableName(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	_, err := New[repoTestUser](sqlxDb, MySQL, "", "UserId")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	_, err := New[repoTestUser](sqlxDb, config)
 	if err == nil {
 		t.Fatalf("Expected error on empty table name")
 	}
 
-	expected := "tableName cannot be empty"
+	expected := "table cannot be empty"
 	if err.Error() != expected {
 		t.Fatalf("Expected \"%s\" error but got \"%s\" instead", expected, err.Error())
 	}
@@ -595,12 +631,18 @@ func TestNewEmptyIdFieldName(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := New[repoTestUser](sqlxDb, MySQL, "users", "")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "Users",
+		idField: "",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	repo, _ := New[repoTestUser](sqlxDb, config)
 	if repo == nil {
 		t.Fatalf("Expected a repo on empty idField")
 	}
 
-	if repo.idFieldName != "id" {
+	if repo.idField != "id" {
 		t.Fatalf("Expected idField to be \"id\"")
 	}
 }
