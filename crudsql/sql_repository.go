@@ -163,11 +163,12 @@ func New[T any](db *sqlx.DB, dialect SQLDialect, tableName string, idFieldName s
 		return nil, err
 	}
 
-	paramGen := internal.NewSQLParamGen(dialect)
+	paramGen := NewSQLParamGen(dialect)
 	statementGen, err := newSQLTemplates(paramGen, tableName, idFieldName, fields)
 
 	return &SQLRepository[T]{
-		db:        db,
-		templates: statementGen,
+		db:          db,
+		templates:   statementGen,
+		idFieldName: idFieldName,
 	}, nil
 }

@@ -25,7 +25,7 @@ type parseCrashingType struct {
 func newMock[T any]() (*SQLRepository[T], *sql.DB, sqlmock.Sqlmock, error) {
 	mockDB, mock, err := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := NewSQLRepository[T](sqlxDb, MySQL, "Users", "UserId")
+	repo, _ := New[T](sqlxDb, MySQL, "Users", "UserId")
 	return repo, mockDB, mock, err
 }
 
@@ -52,29 +52,19 @@ func TestSqlRepository_Create(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_CreateParsePropertiesErr(t *testing.T) {
-	repo, mockDB, _, _ := newMock[parseCrashingType]()
-	defer mockDB.Close()
-	expected := "parseCrashingType.id lacks a db tag"
-
-	model := parseCrashingType{}
-	actual := repo.Create(model)
-
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
-	}
-}
-
 func TestSQLRepository_CreateGetSqlErr(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, -1, "Users", "UserId")
+	repo, _ := New[repoTestUser](sqlxDb, -1, "Users", "UserId")
+	expected := fmt.Errorf("AnyError")
+	repo.templates = sqlTemplatesMock{
+		GetInsertError: expected,
+	}
 
-	expected := "unknown dialect"
 	actual := repo.Create(repoTestUser{})
 
-	if actual.Error() != expected {
+	if actual != expected {
 		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
 	}
 }
@@ -171,32 +161,6 @@ func TestSqlRepository_Read(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadParsePropertiesErr(t *testing.T) {
-	repo, mockDB, _, _ := newMock[parseCrashingType]()
-	defer mockDB.Close()
-	expected := "parseCrashingType.id lacks a db tag"
-
-	_, actual := repo.Read(1)
-
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
-	}
-}
-
-func TestSQLRepository_ReadGetSqlErr(t *testing.T) {
-	mockDB, _, _ := sqlmock.New()
-	defer mockDB.Close()
-	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, -1, "Users", "UserId")
-
-	expected := "unknown dialect"
-	_, actual := repo.Read(1)
-
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
-	}
-}
-
 func TestSqlRepository_ReadPrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
@@ -268,18 +232,6 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadAllParsePropertiesErr(t *testing.T) {
-	repo, mockDB, _, _ := newMock[parseCrashingType]()
-	defer mockDB.Close()
-	expected := "parseCrashingType.id lacks a db tag"
-
-	_, actual := repo.ReadAll()
-
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
-	}
-}
-
 func TestSqlRepository_ReadAllPrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
@@ -335,29 +287,17 @@ func TestSqlRepository_Update(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateParsePropertiesErr(t *testing.T) {
-	repo, mockDB, _, _ := newMock[parseCrashingType]()
-	defer mockDB.Close()
-	expected := "parseCrashingType.id lacks a db tag"
-
-	model := parseCrashingType{}
-	actual := repo.Update(1, model)
-
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
-	}
-}
-
 func TestSQLRepository_UpdateGetSqlErr(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, -1, "Users", "UserId")
+	expected := fmt.Errorf("AnyError")
+	repo, _ := New[repoTestUser](sqlxDb, -1, "Users", "UserId")
+	repo.templates = sqlTemplatesMock{GetUpdateError: expected}
 
-	expected := "unknown dialect"
 	actual := repo.Update(1, repoTestUser{})
 
-	if actual.Error() != expected {
+	if actual != expected {
 		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
 	}
 }
@@ -454,20 +394,6 @@ func TestSqlRepository_DeletePrepareErr(t *testing.T) {
 	}
 }
 
-func TestSQLRepository_DeleteGetSqlErr(t *testing.T) {
-	mockDB, _, _ := sqlmock.New()
-	defer mockDB.Close()
-	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, -1, "Users", "UserId")
-
-	expected := "unknown dialect"
-	actual := repo.Delete(1)
-
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
-	}
-}
-
 func TestSqlRepository_DeleteExecErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
@@ -515,19 +441,19 @@ func TestSqlRepository_DeleteOtherThanOneRowAffected(t *testing.T) {
 	}
 }
 
-func TestNewSql(t *testing.T) {
+func TestNew(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, MySQL, "Users", "UserId")
+	repo, _ := New[repoTestUser](sqlxDb, MySQL, "Users", "UserId")
 
 	if repo == nil {
 		t.Fatalf("Expected a repo, but got nil instead")
 	}
 }
 
-func TestNewSqlNilDb(t *testing.T) {
-	_, err := NewSQLRepository[repoTestUser](nil, MySQL, "users", "UserId")
+func TestNewNilDb(t *testing.T) {
+	_, err := New[repoTestUser](nil, MySQL, "users", "UserId")
 	if err == nil {
 		t.Fatalf("Expected error on nil db")
 	}
@@ -538,11 +464,11 @@ func TestNewSqlNilDb(t *testing.T) {
 	}
 }
 
-func TestNewSqlEmptyTableName(t *testing.T) {
+func TestNewEmptyTableName(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	_, err := NewSQLRepository[repoTestUser](sqlxDb, MySQL, "", "UserId")
+	_, err := New[repoTestUser](sqlxDb, MySQL, "", "UserId")
 	if err == nil {
 		t.Fatalf("Expected error on empty table name")
 	}
@@ -553,11 +479,11 @@ func TestNewSqlEmptyTableName(t *testing.T) {
 	}
 }
 
-func TestNewSqlEmptyIdFieldName(t *testing.T) {
+func TestNewEmptyIdFieldName(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, MySQL, "users", "")
+	repo, _ := New[repoTestUser](sqlxDb, MySQL, "users", "")
 	if repo == nil {
 		t.Fatalf("Expected a repo on empty idField")
 	}

@@ -2,7 +2,6 @@ package crudsql
 
 import (
 	"fmt"
-	"github.com/dekamik/dvbcrud-go/internal"
 	"strings"
 )
 
@@ -15,7 +14,7 @@ type sqlTemplates interface {
 }
 
 type sqlTemplatesImpl struct {
-	gen       internal.ParamGen
+	gen       paramGen
 	tableName string
 	idField   string
 
@@ -36,7 +35,7 @@ func (s sqlTemplatesImpl) GetSelectAll() string {
 
 // GetInsert generates and returns an INSERT INTO statement
 func (s sqlTemplatesImpl) GetInsert(fields []string) (string, error) {
-	placeholders, err := s.gen.GetParamPlaceholders(len(fields), internal.Values)
+	placeholders, err := s.gen.GetParamPlaceholders(len(fields), Values)
 	if err != nil {
 		return "", err
 	}
@@ -49,13 +48,13 @@ func (s sqlTemplatesImpl) GetInsert(fields []string) (string, error) {
 
 // GetUpdate generates and returns an UPDATE statement
 func (s sqlTemplatesImpl) GetUpdate(fields []string) (string, error) {
-	columnPlaceholders, err := s.gen.GetParamPlaceholders(1, internal.Columns)
+	columnPlaceholders, err := s.gen.GetParamPlaceholders(1, Columns)
 	if err != nil {
 		return "", err
 	}
 
 	// Not handling this error because the same code is run above
-	valuePlaceholders, err := s.gen.GetParamPlaceholders(len(fields), internal.Values)
+	valuePlaceholders, err := s.gen.GetParamPlaceholders(len(fields), Values)
 	if err != nil {
 		return "", err
 	}
@@ -78,30 +77,27 @@ func (s sqlTemplatesImpl) GetDelete() string {
 }
 
 // generateSelect generates and returns a SELECT statement (WHERE ID)
-func generateSelect(gen internal.ParamGen, tableName string, idField string, fields []string) (string, error) {
-	placeholders, err := gen.GetParamPlaceholders(1, internal.Columns)
+func generateSelect(gen paramGen, tableName string, idField string, fields []string) (string, error) {
+	placeholders, err := gen.GetParamPlaceholders(1, Columns)
 	if err != nil {
 		return "", err
 	}
 
-	allFields := append([]string{idField}, fields...)
-
 	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = %s",
-		strings.Join(allFields, ", "),
+		strings.Join(fields, ", "),
 		tableName,
 		idField,
 		placeholders[0]), nil
 }
 
 // generateSelectAll generates and returns a SELECT statement (all rows)
-func generateSelectAll(table string, idField string, fields []string) string {
-	allFields := append([]string{idField}, fields...)
-	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(allFields, ", "), table)
+func generateSelectAll(table string, fields []string) string {
+	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), table)
 }
 
 // generateDelete returns DELETE FROM <table> WHERE <id> = ?
-func generateDelete(gen internal.ParamGen, table string, idField string) (string, error) {
-	placeholder, err := gen.GetParamPlaceholders(1, internal.Columns)
+func generateDelete(gen paramGen, table string, idField string) (string, error) {
+	placeholder, err := gen.GetParamPlaceholders(1, Columns)
 	if err != nil {
 		return "", err
 	}
@@ -113,21 +109,13 @@ func generateDelete(gen internal.ParamGen, table string, idField string) (string
 }
 
 // newSQLTemplates pre-generates the SELECT, SELECT ALL and DELETE statement and returns a struct containing the templates.
-func newSQLTemplates(gen internal.ParamGen, tableName string, idField string, fields []string) (sqlTemplates, error) {
-	f := make([]string, len(fields)-1)
-	for i, name := range fields {
-		if name == idField {
-			continue
-		}
-		f[i] = name
-	}
-
-	selectSql, err := generateSelect(gen, tableName, idField, f)
+func newSQLTemplates(gen paramGen, tableName string, idField string, allFields []string) (sqlTemplates, error) {
+	selectSql, err := generateSelect(gen, tableName, idField, allFields)
 	if err != nil {
 		return nil, err
 	}
 
-	selectAllSql := generateSelectAll(tableName, idField, f)
+	selectAllSql := generateSelectAll(tableName, allFields)
 
 	deleteSql, err := generateDelete(gen, tableName, idField)
 	if err != nil {

@@ -1,46 +1,45 @@
-package internal
+package crudsql
 
 import (
 	"fmt"
-	"github.com/dekamik/dvbcrud-go/crudsql"
 )
 
-// ParamType separates Column and Value parameter types.
+// paramType separates Column and Value parameter types.
 // This is only applicable to prepared statements in Oracle.
-type ParamType int
+type paramType int
 
 const (
-	Columns ParamType = iota
+	Columns paramType = iota
 	Values
 )
 
-type ParamGen interface {
-	GetParamPlaceholders(amount int, typ ParamType) ([]string, error)
+type paramGen interface {
+	GetParamPlaceholders(amount int, typ paramType) ([]string, error)
 }
 
 type paramGenImpl struct {
-	ParamGen
-	dialect crudsql.SQLDialect
+	paramGen
+	dialect SQLDialect
 }
 
 // GetParamPlaceholders returns n amount of parameter placeholders as an array of strings.
 // The placeholders are formatted according to the chosen dialect.
 // (e.g. MySQL-like = ?, PostgreSQL = $1, Oracle = :col1 or :var1)
-func (p paramGenImpl) GetParamPlaceholders(amount int, typ ParamType) ([]string, error) {
+func (p paramGenImpl) GetParamPlaceholders(amount int, typ paramType) ([]string, error) {
 	placeholders := make([]string, amount)
 
 	switch p.dialect {
-	case crudsql.MySQL, crudsql.SQLite, crudsql.ODBC, crudsql.MariaDB:
+	case MySQL, SQLite, ODBC, MariaDB:
 		for i := 0; i < amount; i++ {
 			placeholders[i] = "?"
 		}
 
-	case crudsql.PostgreSQL:
+	case PostgreSQL:
 		for i := 0; i < amount; i++ {
 			placeholders[i] = fmt.Sprintf("$%d", i+1)
 		}
 
-	case crudsql.Oracle:
+	case Oracle:
 		var name string
 		if typ == Columns {
 			name = "col"
@@ -62,7 +61,7 @@ func (p paramGenImpl) GetParamPlaceholders(amount int, typ ParamType) ([]string,
 	return placeholders, nil
 }
 
-func NewSQLParamGen(dialect crudsql.SQLDialect) ParamGen {
+func NewSQLParamGen(dialect SQLDialect) paramGen {
 	return paramGenImpl{
 		dialect: dialect,
 	}

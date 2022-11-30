@@ -1,124 +1,114 @@
 package crudsql
 
 import (
-	"github.com/dekamik/dvbcrud-go/internal"
 	"reflect"
 	"testing"
 )
 
-func TestGetParamPlaceholdersMySQL(t *testing.T) {
-	expected := []string{"?", "?", "?"}
-	actual, _ := internal.getParamPlaceholders(MySQL, internal.Columns, 3)
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Expected %v but got %v", expected, actual)
-	}
+type paramGenMock struct {
+	paramGen
+	OnReturn []string
+	OnError  error
 }
 
-func TestGetParamPlaceholdersPostgreSQL(t *testing.T) {
-	expected := []string{"$1", "$2", "$3"}
-	actual, _ := internal.getParamPlaceholders(PostgreSQL, internal.Columns, 3)
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Expected %v but got %v", expected, actual)
+func (p paramGenMock) GetParamPlaceholders(amount int, typ paramType) ([]string, error) {
+	if p.OnError != nil {
+		return nil, p.OnError
 	}
+	return p.OnReturn, nil
 }
 
-func TestGetParamPlaceholdersOracleCol(t *testing.T) {
-	expected := []string{":col1", ":col2", ":col3"}
-	actual, _ := internal.getParamPlaceholders(Oracle, internal.Columns, 3)
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Expected %v but got %v", expected, actual)
+func TestSqlTemplatesImpl_GetSelect(t *testing.T) {
+	expected := "AnySelectStatement"
+	mock := sqlTemplatesImpl{
+		selectSql: expected,
 	}
-}
 
-func TestGetParamPlaceholdersOracleVal(t *testing.T) {
-	expected := []string{":val1", ":val2", ":val3"}
-	actual, _ := internal.getParamPlaceholders(Oracle, internal.Values, 3)
+	actual := mock.GetSelect()
 
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Expected %v but got %v", expected, actual)
-	}
-}
-
-func TestGetParamPlaceholdersOracleColSingle(t *testing.T) {
-	expected := []string{":col"}
-	actual, _ := internal.getParamPlaceholders(Oracle, internal.Columns, 1)
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Expected %v but got %v", expected, actual)
-	}
-}
-
-func TestGetParamPlaceholdersOracleValSingle(t *testing.T) {
-	expected := []string{":val"}
-	actual, _ := internal.getParamPlaceholders(Oracle, internal.Values, 1)
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Expected %v but got %v", expected, actual)
-	}
-}
-
-func TestGetParamPlaceholdersUnknownDialect(t *testing.T) {
-	expected := "unknown dialect"
-	_, actual := internal.getParamPlaceholders(-1, internal.Columns, 1)
-
-	if actual.Error() != expected {
+	if actual != expected {
 		t.Fatalf("Expected \"%s\" but got \"%s\"", expected, actual)
 	}
 }
 
-func TestSelectAll(t *testing.T) {
-	actual := getSelectAllStmt("users", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
-	expected := "SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM users"
+func TestSqlTemplatesImpl_GetSelectAll(t *testing.T) {
+	expected := "AnySelectAllStatement"
+	mock := sqlTemplatesImpl{
+		selectAllSql: expected,
+	}
+
+	actual := mock.GetSelectAll()
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but got \"%s\"", expected, actual)
+	}
+}
+
+func TestSqlTemplatesImpl_GetInsert(t *testing.T) {
+	paramsGenMock := paramGenMock{
+		OnReturn: []string{"?", "?"},
+	}
+	mock := sqlTemplatesImpl{
+		gen:       paramsGenMock,
+		tableName: "any_table",
+	}
+	expected := "INSERT INTO any_table (col_1, col_2) VALUES (?, ?)"
+
+	actual, _ := mock.GetInsert([]string{"col_1", "col_2"})
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but was \"%s\"", expected, actual)
+	}
+}
+
+func TestSqlTemplatesImpl_GetUpdate(t *testing.T) {
+	paramsGenMock := paramGenMock{
+		OnReturn: []string{"?", "?"},
+	}
+	mock := sqlTemplatesImpl{
+		gen:       paramsGenMock,
+		tableName: "any_table",
+		idField:   "id_col",
+	}
+	expected := "UPDATE any_table SET (col_1 = ?, col_2 = ?) WHERE id_col = ?"
+
+	actual, _ := mock.GetUpdate([]string{"col_1", "col_2"})
+
 	if actual != expected {
 		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
 	}
 }
 
-func TestSelectWhere(t *testing.T) {
-	actual, _ := getSelectFromStmt(MySQL, "users", "UserId", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
-	expected := "SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM users WHERE UserId = ?"
+func TestSqlTemplatesImpl_GetDelete(t *testing.T) {
+	expected := "AnyDeleteStatement"
+	mock := sqlTemplatesImpl{
+		deleteSql: expected,
+	}
+
+	actual := mock.GetDelete()
+
 	if actual != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+		t.Fatalf("Expected \"%s\" but got \"%s\"", expected, actual)
 	}
 }
 
-func TestInsertInto(t *testing.T) {
-	actual, _ := getInsertIntoStmt(MySQL, "users", "Name", "Surname", "Birthdate", "CreatedAt")
-	expected := "INSERT INTO users (Name, Surname, Birthdate, CreatedAt) VALUES (?, ?, ?, ?)"
-	if actual != expected {
-		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
+func TestNewSQLTemplates(t *testing.T) {
+	mock := paramGenMock{
+		OnReturn: []string{"?"},
 	}
-}
 
-func TestUpdate(t *testing.T) {
-	actual, _ := getUpdateStmt(MySQL, "users", "UserId", "Name", "Surname", "Birthdate", "CreatedAt")
-	expected := "UPDATE users SET (Name = ?, Surname = ?, Birthdate = ?, CreatedAt = ?) WHERE UserId = ?"
-	if actual != expected {
-		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
+	expected := &sqlTemplatesImpl{
+		gen:          mock,
+		tableName:    "any_table",
+		idField:      "id_col",
+		selectSql:    "SELECT id_col, col_1, col_2 FROM any_table WHERE id_col = ?",
+		selectAllSql: "SELECT id_col, col_1, col_2 FROM any_table",
+		deleteSql:    "DELETE FROM any_table WHERE id_col = ?",
 	}
-}
 
-func TestUpdatePassByValue(t *testing.T) {
-	fields := []string{
-		"name",
-		"surname",
-		"birthdate",
-		"created_at",
-	}
-	fieldsCopy := fields
-	_, _ = getUpdateStmt(MySQL, "users", "id", fieldsCopy...)
-	if !reflect.DeepEqual(fields, fieldsCopy) {
-		t.Fatalf("getUpdateStmt mustn't mutate fields array")
-	}
-}
+	actual, _ := newSQLTemplates(mock, "any_table", "id_col", []string{"id_col", "col_1", "col_2"})
 
-func TestDelete(t *testing.T) {
-	actual, _ := getDeleteFromStmt(MySQL, "users", "UserId")
-	expected := "DELETE FROM users WHERE UserId = ?"
-	if actual != expected {
-		t.Fatalf("Expected \"%s\" but was \"%s\" instead", expected, actual)
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("\nExpected %v\nbut got %v", expected, actual)
 	}
 }
