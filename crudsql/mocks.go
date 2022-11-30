@@ -1,34 +1,40 @@
 package crudsql
 
+type paramGenMock struct {
+	paramGen
+	GetParamPlaceholdersMock func(amount int, typ paramType) ([]string, error)
+}
+
+func (p paramGenMock) GetParamPlaceholders(amount int, typ paramType) ([]string, error) {
+	return p.GetParamPlaceholdersMock(amount, typ)
+}
+
 type sqlTemplatesMock struct {
 	sqlTemplates
 
-	GetSelectReturn    string
-	GetSelectAllReturn string
-	GetInsertReturn    string
-	GetUpdateReturn    string
-	GetDeleteReturn    string
-
-	GetInsertError error
-	GetUpdateError error
+	GetSelectMock    func() string
+	GetSelectAllMock func() string
+	GetInsertMock    func(fields []string) (string, error)
+	GetUpdateMock    func(fields []string) (string, error)
+	GetDeleteMock    func() string
 }
 
 func (s sqlTemplatesMock) GetSelect() string {
-	return s.GetSelectReturn
+	return s.GetSelectMock()
 }
 
 func (s sqlTemplatesMock) GetSelectAll() string {
-	return s.GetSelectAllReturn
+	return s.GetSelectAllMock()
 }
 
 func (s sqlTemplatesMock) GetInsert(fields []string) (string, error) {
-	return s.GetInsertReturn, s.GetInsertError
+	return s.GetInsertMock(fields)
 }
 
 func (s sqlTemplatesMock) GetUpdate(fields []string) (string, error) {
-	return s.GetUpdateReturn, s.GetUpdateError
+	return s.GetUpdateMock(fields)
 }
 
 func (s sqlTemplatesMock) GetDelete() string {
-	return s.GetDeleteReturn
+	return s.GetDeleteMock()
 }

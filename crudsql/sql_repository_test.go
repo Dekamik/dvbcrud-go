@@ -26,12 +26,18 @@ func newMock[T any]() (*SQLRepository[T], *sql.DB, sqlmock.Sqlmock, error) {
 	mockDB, mock, err := sqlmock.New()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
 	repo, _ := New[T](sqlxDb, MySQL, "Users", "UserId")
+	repo.templates = sqlTemplatesMock{}
 	return repo, mockDB, mock, err
 }
 
 func TestSqlRepository_Create(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 
 	user := repoTestUser{
 		ID:        1,
@@ -41,7 +47,7 @@ func TestSqlRepository_Create(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\)$").
+	mock.ExpectPrepare("AnyInsert").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -59,7 +65,9 @@ func TestSQLRepository_CreateGetSqlErr(t *testing.T) {
 	repo, _ := New[repoTestUser](sqlxDb, -1, "Users", "UserId")
 	expected := fmt.Errorf("AnyError")
 	repo.templates = sqlTemplatesMock{
-		GetInsertError: expected,
+		GetInsertMock: func(fields []string) (string, error) {
+			return "", expected
+		},
 	}
 
 	actual := repo.Create(repoTestUser{})
@@ -72,8 +80,13 @@ func TestSQLRepository_CreateGetSqlErr(t *testing.T) {
 func TestSqlRepository_CreatePrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\)$").
+	mock.ExpectPrepare("AnyInsert").
 		WillReturnError(expected)
 
 	actual := repo.Create(repoTestUser{})
@@ -86,8 +99,13 @@ func TestSqlRepository_CreatePrepareErr(t *testing.T) {
 func TestSqlRepository_CreateExecErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\)$").
+	mock.ExpectPrepare("AnyInsert").
 		ExpectExec().
 		WillReturnError(expected)
 
@@ -101,9 +119,14 @@ func TestSqlRepository_CreateExecErr(t *testing.T) {
 func TestSqlRepository_CreateRowsAffectedErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
 	user := repoTestUser{}
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\)$").
+	mock.ExpectPrepare("AnyInsert").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
 		WillReturnResult(sqlmock.NewErrorResult(expected))
@@ -118,9 +141,14 @@ func TestSqlRepository_CreateRowsAffectedErr(t *testing.T) {
 func TestSqlRepository_CreateOtherThanOneRowAffected(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 	expected := "2 rows affected by INSERT INTO statement"
 	user := repoTestUser{}
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\)$").
+	mock.ExpectPrepare("AnyInsert").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
 		WillReturnResult(sqlmock.NewResult(1, 2))
@@ -135,6 +163,11 @@ func TestSqlRepository_CreateOtherThanOneRowAffected(t *testing.T) {
 func TestSqlRepository_Read(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectMock: func() string {
+			return "AnySelect"
+		},
+	}
 
 	expected := repoTestUser{
 		ID:        1,
@@ -146,7 +179,7 @@ func TestSqlRepository_Read(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}).
 		AddRow(expected.ID, expected.Name, expected.Surname, expected.Birthdate, expected.CreatedAt)
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnySelect").
 		ExpectQuery().
 		WithArgs(expected.ID).
 		WillReturnRows(rows)
@@ -164,8 +197,13 @@ func TestSqlRepository_Read(t *testing.T) {
 func TestSqlRepository_ReadPrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectMock: func() string {
+			return "AnySelect"
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnySelect").
 		WillReturnError(expected)
 
 	_, actual := repo.Read(1)
@@ -178,11 +216,16 @@ func TestSqlRepository_ReadPrepareErr(t *testing.T) {
 func TestSqlRepository_ReadStructScanErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectMock: func() string {
+			return "AnySelect"
+		},
+	}
 	expected := "missing destination name AnyId in *crudsql.repoTestUser"
 
 	rows := sqlmock.NewRows([]string{"AnyId"}).
 		AddRow(1)
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnySelect").
 		ExpectQuery().
 		WithArgs(1).
 		WillReturnRows(rows)
@@ -197,6 +240,11 @@ func TestSqlRepository_ReadStructScanErr(t *testing.T) {
 func TestSqlRepository_ReadAll(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectAllMock: func() string {
+			return "AnySelectAll"
+		},
+	}
 
 	expected := []repoTestUser{
 		{
@@ -218,7 +266,7 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}).
 		AddRow(expected[0].ID, expected[0].Name, expected[0].Surname, expected[0].Birthdate, expected[0].CreatedAt).
 		AddRow(expected[1].ID, expected[1].Name, expected[1].Surname, expected[1].Birthdate, expected[1].CreatedAt)
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users$").
+	mock.ExpectPrepare("AnySelectAll").
 		ExpectQuery().
 		WillReturnRows(rows)
 
@@ -235,8 +283,13 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 func TestSqlRepository_ReadAllPrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectAllMock: func() string {
+			return "AnySelectAll"
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users$").
+	mock.ExpectPrepare("AnySelectAll").
 		WillReturnError(expected)
 
 	_, actual := repo.ReadAll()
@@ -249,11 +302,16 @@ func TestSqlRepository_ReadAllPrepareErr(t *testing.T) {
 func TestSqlRepository_ReadAllStructScanErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectAllMock: func() string {
+			return "AnySelectAll"
+		},
+	}
 	expected := "missing destination name AnyId in *[]crudsql.repoTestUser"
 
 	rows := sqlmock.NewRows([]string{"AnyId"}).
 		AddRow(1)
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users$").
+	mock.ExpectPrepare("AnySelectAll").
 		ExpectQuery().
 		WillReturnRows(rows)
 
@@ -267,6 +325,11 @@ func TestSqlRepository_ReadAllStructScanErr(t *testing.T) {
 func TestSqlRepository_Update(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyGetUpdate", nil
+		},
+	}
 
 	user := repoTestUser{
 		ID:        1,
@@ -276,7 +339,7 @@ func TestSqlRepository_Update(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyGetUpdate").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, user.ID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -293,7 +356,11 @@ func TestSQLRepository_UpdateGetSqlErr(t *testing.T) {
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
 	expected := fmt.Errorf("AnyError")
 	repo, _ := New[repoTestUser](sqlxDb, -1, "Users", "UserId")
-	repo.templates = sqlTemplatesMock{GetUpdateError: expected}
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "", expected
+		},
+	}
 
 	actual := repo.Update(1, repoTestUser{})
 
@@ -306,7 +373,12 @@ func TestSqlRepository_UpdatePrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?$").
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyUpdate", nil
+		},
+	}
+	mock.ExpectPrepare("AnyUpdate").
 		WillReturnError(expected)
 
 	actual := repo.Update(1, repoTestUser{})
@@ -319,8 +391,13 @@ func TestSqlRepository_UpdatePrepareErr(t *testing.T) {
 func TestSqlRepository_UpdateExecErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyUpdate", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyUpdate").
 		ExpectExec().
 		WillReturnError(expected)
 
@@ -334,9 +411,14 @@ func TestSqlRepository_UpdateExecErr(t *testing.T) {
 func TestSqlRepository_UpdateRowsAffectedErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyUpdate", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
 	user := repoTestUser{}
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyUpdate").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, 1).
 		WillReturnResult(sqlmock.NewErrorResult(expected))
@@ -351,9 +433,14 @@ func TestSqlRepository_UpdateRowsAffectedErr(t *testing.T) {
 func TestSqlRepository_UpdateOtherThanOneRowAffected(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyUpdate", nil
+		},
+	}
 	expected := "2 rows affected by UPDATE statement"
 	user := repoTestUser{}
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyUpdate").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, 1).
 		WillReturnResult(sqlmock.NewResult(1, 2))
@@ -368,8 +455,13 @@ func TestSqlRepository_UpdateOtherThanOneRowAffected(t *testing.T) {
 func TestSqlRepository_Delete(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyDelete").
 		ExpectExec().
 		WithArgs(1).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -383,8 +475,13 @@ func TestSqlRepository_Delete(t *testing.T) {
 func TestSqlRepository_DeletePrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyDelete").
 		WillReturnError(expected)
 
 	actual := repo.Delete(1)
@@ -397,8 +494,13 @@ func TestSqlRepository_DeletePrepareErr(t *testing.T) {
 func TestSqlRepository_DeleteExecErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyDelete").
 		ExpectExec().
 		WillReturnError(expected)
 
@@ -412,8 +514,13 @@ func TestSqlRepository_DeleteExecErr(t *testing.T) {
 func TestSqlRepository_DeleteRowsAffectedErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyDelete").
 		ExpectExec().
 		WithArgs(1).
 		WillReturnResult(sqlmock.NewErrorResult(expected))
@@ -428,8 +535,13 @@ func TestSqlRepository_DeleteRowsAffectedErr(t *testing.T) {
 func TestSqlRepository_DeleteOtherThanOneRowAffected(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 	expected := "2 rows affected by DELETE statement"
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?$").
+	mock.ExpectPrepare("AnyDelete").
 		ExpectExec().
 		WithArgs(1).
 		WillReturnResult(sqlmock.NewResult(1, 2))

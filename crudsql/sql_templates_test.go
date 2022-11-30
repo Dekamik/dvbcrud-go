@@ -1,22 +1,9 @@
 package crudsql
 
 import (
-	"reflect"
+	"fmt"
 	"testing"
 )
-
-type paramGenMock struct {
-	paramGen
-	OnReturn []string
-	OnError  error
-}
-
-func (p paramGenMock) GetParamPlaceholders(amount int, typ paramType) ([]string, error) {
-	if p.OnError != nil {
-		return nil, p.OnError
-	}
-	return p.OnReturn, nil
-}
 
 func TestSqlTemplatesImpl_GetSelect(t *testing.T) {
 	expected := "AnySelectStatement"
@@ -46,7 +33,9 @@ func TestSqlTemplatesImpl_GetSelectAll(t *testing.T) {
 
 func TestSqlTemplatesImpl_GetInsert(t *testing.T) {
 	paramsGenMock := paramGenMock{
-		OnReturn: []string{"?", "?"},
+		GetParamPlaceholdersMock: func(amount int, typ paramType) ([]string, error) {
+			return []string{"?", "?"}, nil
+		},
 	}
 	mock := sqlTemplatesImpl{
 		gen:       paramsGenMock,
@@ -61,9 +50,27 @@ func TestSqlTemplatesImpl_GetInsert(t *testing.T) {
 	}
 }
 
+func TestSqlTemplatesImpl_GetInsertParamsErr(t *testing.T) {
+	expected := fmt.Errorf("AnyError")
+	paramGenMock := paramGenMock{
+		GetParamPlaceholdersMock: func(amount int, typ paramType) ([]string, error) {
+			return nil, expected
+		},
+	}
+	mock := sqlTemplatesImpl{gen: paramGenMock}
+
+	_, actual := mock.GetInsert([]string{})
+
+	if actual != expected {
+		t.Fatalf("Expected \"%s\" but was \"%s\"", expected, actual)
+	}
+}
+
 func TestSqlTemplatesImpl_GetUpdate(t *testing.T) {
 	paramsGenMock := paramGenMock{
-		OnReturn: []string{"?", "?"},
+		GetParamPlaceholdersMock: func(amount int, typ paramType) ([]string, error) {
+			return []string{"?", "?"}, nil
+		},
 	}
 	mock := sqlTemplatesImpl{
 		gen:       paramsGenMock,
@@ -94,10 +101,12 @@ func TestSqlTemplatesImpl_GetDelete(t *testing.T) {
 
 func TestNewSQLTemplates(t *testing.T) {
 	mock := paramGenMock{
-		OnReturn: []string{"?"},
+		GetParamPlaceholdersMock: func(amount int, typ paramType) ([]string, error) {
+			return []string{"?"}, nil
+		},
 	}
 
-	expected := &sqlTemplatesImpl{
+	expected := sqlTemplatesImpl{
 		gen:          mock,
 		tableName:    "any_table",
 		idField:      "id_col",
@@ -108,7 +117,9 @@ func TestNewSQLTemplates(t *testing.T) {
 
 	actual, _ := newSQLTemplates(mock, "any_table", "id_col", []string{"id_col", "col_1", "col_2"})
 
-	if !reflect.DeepEqual(actual, expected) {
+	if expected.GetSelect() != actual.GetSelect() ||
+		expected.GetSelectAll() != actual.GetSelectAll() ||
+		expected.GetDelete() != actual.GetDelete() {
 		t.Fatalf("\nExpected %v\nbut got %v", expected, actual)
 	}
 }
