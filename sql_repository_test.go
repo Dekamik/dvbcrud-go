@@ -22,16 +22,28 @@ type parseCrashingType struct {
 	id any
 }
 
-func newMock[T any]() (*SqlRepository[T], *sql.DB, sqlmock.Sqlmock, error) {
-	mockDb, mock, err := sqlmock.New()
-	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repo, _ := NewSql[T](sqlxDb, "Users", "UserId")
-	return repo, mockDb, mock, err
+func newMock[T any]() (*SQLRepository[T], *sql.DB, sqlmock.Sqlmock, error) {
+	mockDB, mock, err := sqlmock.New()
+	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "Users",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	repo, _ := New[T](sqlxDb, config)
+	repo.templates = sqlTemplatesMock{}
+	return repo, mockDB, mock, err
 }
 
 func TestSqlRepository_Create(t *testing.T) {
-	repo, mockDb, mock, _ := newMock[repoTestUser]()
-	defer mockDb.Close()
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 
 	user := repoTestUser{
 		ID:        1,
@@ -41,7 +53,7 @@ func TestSqlRepository_Create(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\);$").
+	mock.ExpectPrepare("AnyInsert").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -52,22 +64,58 @@ func TestSqlRepository_Create(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_CreateParsePropertiesErr(t *testing.T) {
-	repo, _, _, _ := newMock[parseCrashingType]()
-	expected := "parseCrashingType.id lacks a db tag"
+func TestSQLRepository_Create_ParsePropertiesErr(t *testing.T) {
+	expected := fmt.Errorf("AnyError")
+	parserMock := structParserMock{
+		ParsePropertiesMock: func(model any, idFieldName string) ([]string, []any, error) {
+			return nil, nil, expected
+		},
+	}
+	repo := SQLRepository[any]{
+		structParser: parserMock,
+	}
 
-	model := parseCrashingType{}
-	actual := repo.Create(model)
+	actual := repo.Create("AnyModel")
 
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	if actual != expected {
+		t.Fatalf("Expected %v but got %v", expected, actual)
 	}
 }
 
-func TestSqlRepository_CreatePrepareErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSQLRepository_Create_GetSqlErr(t *testing.T) {
+	expected := fmt.Errorf("AnyError")
+	parserMock := structParserMock{
+		ParsePropertiesMock: func(model any, idFieldName string) ([]string, []any, error) {
+			return []string{}, []any{}, nil
+		},
+	}
+	templatesMock := sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "", expected
+		},
+	}
+	repo := SQLRepository[any]{
+		structParser: parserMock,
+		templates:    templatesMock,
+	}
+
+	actual := repo.Create("AnyModel")
+
+	if actual != expected {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestSqlRepository_Create_PrepareErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\);$").
+	mock.ExpectPrepare("AnyInsert").
 		WillReturnError(expected)
 
 	actual := repo.Create(repoTestUser{})
@@ -77,10 +125,16 @@ func TestSqlRepository_CreatePrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_CreateExecErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Create_ExecErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\);$").
+	mock.ExpectPrepare("AnyInsert").
 		ExpectExec().
 		WillReturnError(expected)
 
@@ -91,11 +145,17 @@ func TestSqlRepository_CreateExecErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_CreateRowsAffectedErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Create_RowsAffectedErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
 	user := repoTestUser{}
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\);$").
+	mock.ExpectPrepare("AnyInsert").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
 		WillReturnResult(sqlmock.NewErrorResult(expected))
@@ -107,11 +167,17 @@ func TestSqlRepository_CreateRowsAffectedErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_CreateOtherThanOneRowAffected(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Create_OtherThanOneRowAffected(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetInsertMock: func(fields []string) (string, error) {
+			return "AnyInsert", nil
+		},
+	}
 	expected := "2 rows affected by INSERT INTO statement"
 	user := repoTestUser{}
-	mock.ExpectPrepare("^INSERT INTO Users \\(Name, Surname, Birthdate, CreatedAt\\) VALUES \\(\\?, \\?, \\?, \\?\\);$").
+	mock.ExpectPrepare("AnyInsert").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt).
 		WillReturnResult(sqlmock.NewResult(1, 2))
@@ -124,8 +190,13 @@ func TestSqlRepository_CreateOtherThanOneRowAffected(t *testing.T) {
 }
 
 func TestSqlRepository_Read(t *testing.T) {
-	repo, mockDb, mock, _ := newMock[repoTestUser]()
-	defer mockDb.Close()
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectMock: func() string {
+			return "AnySelect"
+		},
+	}
 
 	expected := repoTestUser{
 		ID:        1,
@@ -137,7 +208,7 @@ func TestSqlRepository_Read(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}).
 		AddRow(expected.ID, expected.Name, expected.Surname, expected.Birthdate, expected.CreatedAt)
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnySelect").
 		ExpectQuery().
 		WithArgs(expected.ID).
 		WillReturnRows(rows)
@@ -152,21 +223,16 @@ func TestSqlRepository_Read(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadParsePropertiesErr(t *testing.T) {
-	repo, _, _, _ := newMock[parseCrashingType]()
-	expected := "parseCrashingType.id lacks a db tag"
-
-	_, actual := repo.Read(1)
-
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+func TestSqlRepository_Read_PrepareErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectMock: func() string {
+			return "AnySelect"
+		},
 	}
-}
-
-func TestSqlRepository_ReadPrepareErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnySelect").
 		WillReturnError(expected)
 
 	_, actual := repo.Read(1)
@@ -176,13 +242,19 @@ func TestSqlRepository_ReadPrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadStructScanErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Read_StructScanErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectMock: func() string {
+			return "AnySelect"
+		},
+	}
 	expected := "missing destination name AnyId in *dvbcrud.repoTestUser"
 
 	rows := sqlmock.NewRows([]string{"AnyId"}).
 		AddRow(1)
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnySelect").
 		ExpectQuery().
 		WithArgs(1).
 		WillReturnRows(rows)
@@ -195,8 +267,13 @@ func TestSqlRepository_ReadStructScanErr(t *testing.T) {
 }
 
 func TestSqlRepository_ReadAll(t *testing.T) {
-	repo, mockDb, mock, _ := newMock[repoTestUser]()
-	defer mockDb.Close()
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectAllMock: func() string {
+			return "AnySelectAll"
+		},
+	}
 
 	expected := []repoTestUser{
 		{
@@ -218,7 +295,7 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}).
 		AddRow(expected[0].ID, expected[0].Name, expected[0].Surname, expected[0].Birthdate, expected[0].CreatedAt).
 		AddRow(expected[1].ID, expected[1].Name, expected[1].Surname, expected[1].Birthdate, expected[1].CreatedAt)
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users;$").
+	mock.ExpectPrepare("AnySelectAll").
 		ExpectQuery().
 		WillReturnRows(rows)
 
@@ -232,21 +309,16 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadAllParsePropertiesErr(t *testing.T) {
-	repo, _, _, _ := newMock[parseCrashingType]()
-	expected := "parseCrashingType.id lacks a db tag"
-
-	_, actual := repo.ReadAll()
-
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+func TestSqlRepository_ReadAll_PrepareErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectAllMock: func() string {
+			return "AnySelectAll"
+		},
 	}
-}
-
-func TestSqlRepository_ReadAllPrepareErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users;$").
+	mock.ExpectPrepare("AnySelectAll").
 		WillReturnError(expected)
 
 	_, actual := repo.ReadAll()
@@ -256,13 +328,19 @@ func TestSqlRepository_ReadAllPrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadAllStructScanErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_ReadAll_StructScanErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetSelectAllMock: func() string {
+			return "AnySelectAll"
+		},
+	}
 	expected := "missing destination name AnyId in *[]dvbcrud.repoTestUser"
 
 	rows := sqlmock.NewRows([]string{"AnyId"}).
 		AddRow(1)
-	mock.ExpectPrepare("^SELECT UserId, Name, Surname, Birthdate, CreatedAt FROM Users;$").
+	mock.ExpectPrepare("AnySelectAll").
 		ExpectQuery().
 		WillReturnRows(rows)
 
@@ -274,8 +352,13 @@ func TestSqlRepository_ReadAllStructScanErr(t *testing.T) {
 }
 
 func TestSqlRepository_Update(t *testing.T) {
-	repo, mockDb, mock, _ := newMock[repoTestUser]()
-	defer mockDb.Close()
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyGetUpdate", nil
+		},
+	}
 
 	user := repoTestUser{
 		ID:        1,
@@ -285,7 +368,7 @@ func TestSqlRepository_Update(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyGetUpdate").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, user.ID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -296,22 +379,58 @@ func TestSqlRepository_Update(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateParsePropertiesErr(t *testing.T) {
-	repo, _, _, _ := newMock[parseCrashingType]()
-	expected := "parseCrashingType.id lacks a db tag"
+func TestSQLRepository_Update_ParsePropertiesErr(t *testing.T) {
+	expected := fmt.Errorf("AnyError")
+	parserMock := structParserMock{
+		ParsePropertiesMock: func(model any, idFieldName string) ([]string, []any, error) {
+			return nil, nil, expected
+		},
+	}
+	repo := SQLRepository[any]{
+		structParser: parserMock,
+	}
 
-	model := parseCrashingType{}
-	actual := repo.Update(1, model)
+	actual := repo.Update(1, "AnyModel")
 
-	if actual.Error() != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+	if actual != expected {
+		t.Fatalf("Expected %v but got %v", expected, actual)
 	}
 }
 
-func TestSqlRepository_UpdatePrepareErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSQLRepository_Update_GetSqlErr(t *testing.T) {
+	expected := fmt.Errorf("AnyError")
+	parserMock := structParserMock{
+		ParsePropertiesMock: func(model any, idFieldName string) ([]string, []any, error) {
+			return []string{}, []any{}, nil
+		},
+	}
+	templatesMock := sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "", expected
+		},
+	}
+	repo := SQLRepository[any]{
+		structParser: parserMock,
+		templates:    templatesMock,
+	}
+
+	actual := repo.Update(1, "AnyModel")
+
+	if actual != expected {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestSqlRepository_Update_PrepareErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyUpdate", nil
+		},
+	}
+	mock.ExpectPrepare("AnyUpdate").
 		WillReturnError(expected)
 
 	actual := repo.Update(1, repoTestUser{})
@@ -321,10 +440,16 @@ func TestSqlRepository_UpdatePrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateExecErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Update_ExecErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyUpdate", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyUpdate").
 		ExpectExec().
 		WillReturnError(expected)
 
@@ -335,11 +460,17 @@ func TestSqlRepository_UpdateExecErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateRowsAffectedErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Update_RowsAffectedErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyUpdate", nil
+		},
+	}
 	expected := fmt.Errorf("any error")
 	user := repoTestUser{}
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyUpdate").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, 1).
 		WillReturnResult(sqlmock.NewErrorResult(expected))
@@ -351,11 +482,17 @@ func TestSqlRepository_UpdateRowsAffectedErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateOtherThanOneRowAffected(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Update_OtherThanOneRowAffected(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetUpdateMock: func(fields []string) (string, error) {
+			return "AnyUpdate", nil
+		},
+	}
 	expected := "2 rows affected by UPDATE statement"
 	user := repoTestUser{}
-	mock.ExpectPrepare("^UPDATE Users SET \\(Name = \\?, Surname = \\?, Birthdate = \\?, CreatedAt = \\?\\) WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyUpdate").
 		ExpectExec().
 		WithArgs(user.Name, user.Surname, user.Birthdate, user.CreatedAt, 1).
 		WillReturnResult(sqlmock.NewResult(1, 2))
@@ -368,10 +505,15 @@ func TestSqlRepository_UpdateOtherThanOneRowAffected(t *testing.T) {
 }
 
 func TestSqlRepository_Delete(t *testing.T) {
-	repo, mockDb, mock, _ := newMock[repoTestUser]()
-	defer mockDb.Close()
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyDelete").
 		ExpectExec().
 		WithArgs(1).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -382,10 +524,16 @@ func TestSqlRepository_Delete(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeletePrepareErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Delete_PrepareErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyDelete").
 		WillReturnError(expected)
 
 	actual := repo.Delete(1)
@@ -395,10 +543,16 @@ func TestSqlRepository_DeletePrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeleteExecErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Delete_ExecErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyDelete").
 		ExpectExec().
 		WillReturnError(expected)
 
@@ -409,10 +563,16 @@ func TestSqlRepository_DeleteExecErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeleteRowsAffectedErr(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Delete_RowsAffectedErr(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 	expected := fmt.Errorf("any error")
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyDelete").
 		ExpectExec().
 		WithArgs(1).
 		WillReturnResult(sqlmock.NewErrorResult(expected))
@@ -424,10 +584,16 @@ func TestSqlRepository_DeleteRowsAffectedErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeleteOtherThanOneRowAffected(t *testing.T) {
-	repo, _, mock, _ := newMock[repoTestUser]()
+func TestSqlRepository_Delete_OtherThanOneRowAffected(t *testing.T) {
+	repo, mockDB, mock, _ := newMock[repoTestUser]()
+	defer mockDB.Close()
+	repo.templates = sqlTemplatesMock{
+		GetDeleteMock: func() string {
+			return "AnyDelete"
+		},
+	}
 	expected := "2 rows affected by DELETE statement"
-	mock.ExpectPrepare("^DELETE FROM Users WHERE UserId = \\?;$").
+	mock.ExpectPrepare("AnyDelete").
 		ExpectExec().
 		WithArgs(1).
 		WillReturnResult(sqlmock.NewResult(1, 2))
@@ -439,18 +605,31 @@ func TestSqlRepository_DeleteOtherThanOneRowAffected(t *testing.T) {
 	}
 }
 
-func TestNewSql(t *testing.T) {
-	mockDb, _, _ := sqlmock.New()
-	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repo, _ := NewSql[repoTestUser](sqlxDb, "Users", "UserId")
+func TestNew(t *testing.T) {
+	mockDB, _, _ := sqlmock.New()
+	defer mockDB.Close()
+	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "Users",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	repo, _ := New[repoTestUser](sqlxDb, config)
 
 	if repo == nil {
 		t.Fatalf("Expected a repo, but got nil instead")
 	}
 }
 
-func TestNewSqlNilDb(t *testing.T) {
-	_, err := NewSql[repoTestUser](nil, "users", "UserId")
+func TestNew_NilDb(t *testing.T) {
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "Users",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	_, err := New[repoTestUser](nil, config)
 	if err == nil {
 		t.Fatalf("Expected error on nil db")
 	}
@@ -461,29 +640,43 @@ func TestNewSqlNilDb(t *testing.T) {
 	}
 }
 
-func TestNewSqlEmptyTableName(t *testing.T) {
-	mockDb, _, _ := sqlmock.New()
-	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	_, err := NewSql[repoTestUser](sqlxDb, "", "UserId")
+func TestNew_EmptyTableName(t *testing.T) {
+	mockDB, _, _ := sqlmock.New()
+	defer mockDB.Close()
+	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "",
+		idField: "UserId",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	_, err := New[repoTestUser](sqlxDb, config)
 	if err == nil {
 		t.Fatalf("Expected error on empty table name")
 	}
 
-	expected := "tableName cannot be empty"
+	expected := "table cannot be empty"
 	if err.Error() != expected {
 		t.Fatalf("Expected \"%s\" error but got \"%s\" instead", expected, err.Error())
 	}
 }
 
-func TestNewSqlEmptyIdFieldName(t *testing.T) {
-	mockDb, _, _ := sqlmock.New()
-	sqlxDb := sqlx.NewDb(mockDb, "sqlmock")
-	repo, _ := NewSql[repoTestUser](sqlxDb, "users", "")
+func TestNew_EmptyIdFieldName(t *testing.T) {
+	mockDB, _, _ := sqlmock.New()
+	defer mockDB.Close()
+	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
+	config := SQLRepositoryConfig{
+		dialect: MySQL,
+		table:   "Users",
+		idField: "",
+		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	}
+	repo, _ := New[repoTestUser](sqlxDb, config)
 	if repo == nil {
-		t.Fatalf("Expected a repo on empty idFieldName")
+		t.Fatalf("Expected a repo on empty idField")
 	}
 
-	if repo.idFieldName != "id" {
-		t.Fatalf("Expected idFieldName to be \"id\"")
+	if repo.idField != "id" {
+		t.Fatalf("Expected idField to be \"id\"")
 	}
 }

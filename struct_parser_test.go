@@ -21,17 +21,19 @@ type testMissingTagAddress struct {
 	City    string
 }
 
-func TestParseFieldNames(t *testing.T) {
+func TestStructParserImpl_ParseFieldNames(t *testing.T) {
+	parser := newStructParser()
 	expected := []string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}
-	actual, _ := parseFieldNames(reflect.TypeOf(structTestUser{}))
+	actual, _ := parser.ParseFieldNames(reflect.TypeOf(structTestUser{}))
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("Actual fields didn't match expected fields")
 	}
 }
 
-func TestParseFieldNamesNonStructType(t *testing.T) {
-	_, err := parseFieldNames(reflect.TypeOf([]int{}))
+func TestStructParserImpl_ParseFieldNames_NonStructType(t *testing.T) {
+	parser := newStructParser()
+	_, err := parser.ParseFieldNames(reflect.TypeOf([]int{}))
 	if err == nil {
 		t.Fatalf("Expected error on non-struct type")
 	}
@@ -41,8 +43,9 @@ func TestParseFieldNamesNonStructType(t *testing.T) {
 	}
 }
 
-func TestParseFieldNamesMissingTag(t *testing.T) {
-	_, err := parseFieldNames(reflect.TypeOf(testMissingTagAddress{}))
+func TestStructParserImpl_ParseFieldNames_MissingTag(t *testing.T) {
+	parser := newStructParser()
+	_, err := parser.ParseFieldNames(reflect.TypeOf(testMissingTagAddress{}))
 	if err == nil {
 		t.Fatalf("Expected error on missing tag")
 	}
@@ -52,7 +55,8 @@ func TestParseFieldNamesMissingTag(t *testing.T) {
 	}
 }
 
-func TestParseProperties(t *testing.T) {
+func TestStructParserImpl_ParseProperties(t *testing.T) {
+	parser := newStructParser()
 	user := structTestUser{
 		ID:        1,
 		Name:      "AnyName",
@@ -63,7 +67,7 @@ func TestParseProperties(t *testing.T) {
 
 	expectedFields := []string{"Name", "Surname", "Birthdate", "CreatedAt"}
 	expectedValues := []any{user.Name, user.Surname, user.Birthdate, user.CreatedAt}
-	actualFields, actualValues, _ := parseProperties(user, "UserId")
+	actualFields, actualValues, _ := parser.ParseProperties(user, "UserId")
 
 	if !reflect.DeepEqual(expectedFields, actualFields) {
 		t.Fatalf("Actual fields didn't match expected fields")
@@ -72,9 +76,10 @@ func TestParseProperties(t *testing.T) {
 	}
 }
 
-func TestParsePropertiesNonStructType(t *testing.T) {
+func TestStructParserImpl_ParseProperties_NonStructType(t *testing.T) {
+	parser := newStructParser()
 	test := []string{"one"}
-	_, _, err := parseProperties(test, "")
+	_, _, err := parser.ParseProperties(test, "")
 	if err == nil {
 		t.Fatalf("Expected error on non-struct type")
 	}
@@ -84,14 +89,15 @@ func TestParsePropertiesNonStructType(t *testing.T) {
 	}
 }
 
-func TestParsePropertiesMissingTag(t *testing.T) {
+func TestStructParserImpl_ParseProperties_MissingTag(t *testing.T) {
+	parser := newStructParser()
 	address := testMissingTagAddress{
 		ID:      0,
 		Address: "",
 		ZipCode: "",
 		City:    "",
 	}
-	_, _, err := parseProperties(address, "address_id")
+	_, _, err := parser.ParseProperties(address, "address_id")
 	if err == nil {
 		t.Fatalf("Expected error on missing tag")
 	}
