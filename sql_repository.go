@@ -19,7 +19,6 @@ type SQLRepositoryConfig struct {
 	dialect SQLDialect
 	table   string
 	idField string
-	fields  []string
 }
 
 // Create inserts the values in model into a new row in the table.
@@ -152,8 +151,8 @@ func (r SQLRepository[T]) Delete(id any) error {
 	return nil
 }
 
-// New creates and returns a new SQLRepository.
-func New[T any](db *sqlx.DB, config SQLRepositoryConfig) (*SQLRepository[T], error) {
+// NewSQLRepository creates and returns a new SQLRepository.
+func NewSQLRepository[T any](db *sqlx.DB, config SQLRepositoryConfig) (*SQLRepository[T], error) {
 	if db == nil {
 		return nil, fmt.Errorf("db cannot be nil")
 	}

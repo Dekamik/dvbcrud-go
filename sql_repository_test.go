@@ -29,9 +29,8 @@ func newMock[T any]() (*SQLRepository[T], *sql.DB, sqlmock.Sqlmock, error) {
 		dialect: MySQL,
 		table:   "Users",
 		idField: "UserId",
-		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
 	}
-	repo, _ := New[T](sqlxDb, config)
+	repo, _ := NewSQLRepository[T](sqlxDb, config)
 	repo.templates = sqlTemplatesMock{}
 	return repo, mockDB, mock, err
 }
@@ -613,9 +612,8 @@ func TestNew(t *testing.T) {
 		dialect: MySQL,
 		table:   "Users",
 		idField: "UserId",
-		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
 	}
-	repo, _ := New[repoTestUser](sqlxDb, config)
+	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, config)
 
 	if repo == nil {
 		t.Fatalf("Expected a repo, but got nil instead")
@@ -627,9 +625,8 @@ func TestNew_NilDb(t *testing.T) {
 		dialect: MySQL,
 		table:   "Users",
 		idField: "UserId",
-		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
 	}
-	_, err := New[repoTestUser](nil, config)
+	_, err := NewSQLRepository[repoTestUser](nil, config)
 	if err == nil {
 		t.Fatalf("Expected error on nil db")
 	}
@@ -648,9 +645,8 @@ func TestNew_EmptyTableName(t *testing.T) {
 		dialect: MySQL,
 		table:   "",
 		idField: "UserId",
-		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
 	}
-	_, err := New[repoTestUser](sqlxDb, config)
+	_, err := NewSQLRepository[repoTestUser](sqlxDb, config)
 	if err == nil {
 		t.Fatalf("Expected error on empty table name")
 	}
@@ -669,9 +665,8 @@ func TestNew_EmptyIdFieldName(t *testing.T) {
 		dialect: MySQL,
 		table:   "Users",
 		idField: "",
-		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
 	}
-	repo, _ := New[repoTestUser](sqlxDb, config)
+	repo, _ := NewSQLRepository[repoTestUser](sqlxDb, config)
 	if repo == nil {
 		t.Fatalf("Expected a repo on empty idField")
 	}

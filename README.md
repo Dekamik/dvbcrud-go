@@ -15,7 +15,7 @@ package example
 
 import (
     "fmt"
-    "github.com/Dekamik/dvbcrud-go"
+    "github.com/dekamik/dvbcrud-go"
     "github.com/jmoiron/sqlx"
     "time"
 )
@@ -30,7 +30,12 @@ func main() {
     // All errors are ignored for brevity
     DB, _ := sqlx.Connect("mssql", "datasource")
     _ = DB.Ping()
-    userRepo, _ := dvbcrud.NewSql[User](DB, "Users", "UserId")
+    config := dvbcrud.SQLRepositoryConfig{
+        dialect: dvbcrud.MySQL,
+        table: "Users",
+        idField: "UserId",
+    }
+    userRepo, _ := dvbcrud.NewSQLRepository[User](DB, config)
 
     seed := []User{
         {
