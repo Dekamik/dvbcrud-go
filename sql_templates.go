@@ -37,11 +37,11 @@ func (s sqlTemplatesImpl) GetSelectAll() string {
 }
 
 func (s sqlTemplatesImpl) GetInsert(fields []string) (string, error) {
-	return s.sqlGen.generateInsert(s.tableName, fields)
+	return s.sqlGen.GenerateInsert(s.tableName, fields)
 }
 
 func (s sqlTemplatesImpl) GetUpdate(fields []string) (string, error) {
-	return s.sqlGen.generateUpdate(s.tableName, s.idField, fields)
+	return s.sqlGen.GenerateUpdate(s.tableName, s.idField, fields)
 }
 
 func (s sqlTemplatesImpl) GetDelete() string {
@@ -50,14 +50,14 @@ func (s sqlTemplatesImpl) GetDelete() string {
 
 // newSQLTemplates pre-generates the SELECT, SELECT ALL and DELETE statement and returns a struct containing the templates.
 func newSQLTemplates(sqlGen sqlGenerator, tableName string, idField string, allFields []string) (sqlTemplates, error) {
-	selectSql, err := sqlGen.generateSelect(tableName, idField, allFields)
+	selectSql, err := sqlGen.GenerateSelect(tableName, idField, allFields)
 	if err != nil {
 		return nil, err
 	}
 
-	selectAllSql := sqlGen.generateSelectAll(tableName, allFields)
+	selectAllSql := sqlGen.GenerateSelectAll(tableName, allFields)
 
-	deleteSql, err := sqlGen.generateDelete(tableName, idField)
+	deleteSql, err := sqlGen.GenerateDelete(tableName, idField)
 	if err != nil {
 		return nil, err
 	}

@@ -72,6 +72,6 @@ func (s structParserImpl) ParseProperties(model any, idFieldName string) ([]stri
 	return fields, values, nil
 }
 
-func NewStructParser() StructParser {
+func newStructParser() StructParser {
 	return &structParserImpl{}
 }

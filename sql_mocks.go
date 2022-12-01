@@ -2,12 +2,12 @@ package dvbcrud
 
 import "reflect"
 
-type paramGenMock struct {
+type sqlParameterGeneratorMock struct {
 	sqlParameterGenerator
-	GetParamPlaceholdersMock func(amount int, typ paramType) ([]string, error)
+	GetParamPlaceholdersMock func(amount int, typ parameterType) ([]string, error)
 }
 
-func (p paramGenMock) GetParamPlaceholders(amount int, typ paramType) ([]string, error) {
+func (p sqlParameterGeneratorMock) GetParamPlaceholders(amount int, typ parameterType) ([]string, error) {
 	return p.GetParamPlaceholdersMock(amount, typ)
 }
 
@@ -21,23 +21,23 @@ type sqlGeneratorMock struct {
 	generateDeleteMock    func(table string, idField string) (string, error)
 }
 
-func (s sqlGeneratorMock) generateSelect(table string, idField string, fields []string) (string, error) {
+func (s sqlGeneratorMock) GenerateSelect(table string, idField string, fields []string) (string, error) {
 	return s.generateSelectMock(table, idField, fields)
 }
 
-func (s sqlGeneratorMock) generateSelectAll(table string, fields []string) string {
+func (s sqlGeneratorMock) GenerateSelectAll(table string, fields []string) string {
 	return s.generateSelectAllMock(table, fields)
 }
 
-func (s sqlGeneratorMock) generateInsert(table string, fields []string) (string, error) {
+func (s sqlGeneratorMock) GenerateInsert(table string, fields []string) (string, error) {
 	return s.generateInsertMock(table, fields)
 }
 
-func (s sqlGeneratorMock) generateUpdate(table string, idField string, fields []string) (string, error) {
+func (s sqlGeneratorMock) GenerateUpdate(table string, idField string, fields []string) (string, error) {
 	return s.generateUpdateMock(table, idField, fields)
 }
 
-func (s sqlGeneratorMock) generateDelete(table string, idField string) (string, error) {
+func (s sqlGeneratorMock) GenerateDelete(table string, idField string) (string, error) {
 	return s.generateDeleteMock(table, idField)
 }
 
@@ -76,10 +76,6 @@ type structParserMock struct {
 
 	ParseFieldNamesMock func(typ reflect.Type) ([]string, error)
 	ParsePropertiesMock func(model any, idFieldName string) ([]string, []any, error)
-}
-
-func (s structParserMock) ParseFieldNames(typ reflect.Type) ([]string, error) {
-	return s.ParseFieldNamesMock(typ)
 }
 
 func (s structParserMock) ParseProperties(model any, idFieldName string) ([]string, []any, error) {

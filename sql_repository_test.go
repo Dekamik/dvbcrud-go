@@ -64,6 +64,24 @@ func TestSqlRepository_Create(t *testing.T) {
 	}
 }
 
+func TestSQLRepository_Create_ParsePropertiesErr(t *testing.T) {
+	expected := fmt.Errorf("AnyError")
+	parserMock := structParserMock{
+		ParsePropertiesMock: func(model any, idFieldName string) ([]string, []any, error) {
+			return nil, nil, expected
+		},
+	}
+	repo := SQLRepository[any]{
+		structParser: parserMock,
+	}
+
+	actual := repo.Create("AnyModel")
+
+	if actual != expected {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
 func TestSQLRepository_Create_GetSqlErr(t *testing.T) {
 	expected := fmt.Errorf("AnyError")
 	parserMock := structParserMock{

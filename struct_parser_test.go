@@ -21,8 +21,8 @@ type testMissingTagAddress struct {
 	City    string
 }
 
-func TestParseFieldNames(t *testing.T) {
-	parser := NewStructParser()
+func TestStructParserImpl_ParseFieldNames(t *testing.T) {
+	parser := newStructParser()
 	expected := []string{"UserId", "Name", "Surname", "Birthdate", "CreatedAt"}
 	actual, _ := parser.ParseFieldNames(reflect.TypeOf(structTestUser{}))
 
@@ -31,8 +31,8 @@ func TestParseFieldNames(t *testing.T) {
 	}
 }
 
-func TestParseFieldNamesNonStructType(t *testing.T) {
-	parser := NewStructParser()
+func TestStructParserImpl_ParseFieldNames_NonStructType(t *testing.T) {
+	parser := newStructParser()
 	_, err := parser.ParseFieldNames(reflect.TypeOf([]int{}))
 	if err == nil {
 		t.Fatalf("Expected error on non-struct type")
@@ -43,8 +43,8 @@ func TestParseFieldNamesNonStructType(t *testing.T) {
 	}
 }
 
-func TestParseFieldNamesMissingTag(t *testing.T) {
-	parser := NewStructParser()
+func TestStructParserImpl_ParseFieldNames_MissingTag(t *testing.T) {
+	parser := newStructParser()
 	_, err := parser.ParseFieldNames(reflect.TypeOf(testMissingTagAddress{}))
 	if err == nil {
 		t.Fatalf("Expected error on missing tag")
@@ -55,8 +55,8 @@ func TestParseFieldNamesMissingTag(t *testing.T) {
 	}
 }
 
-func TestParseProperties(t *testing.T) {
-	parser := NewStructParser()
+func TestStructParserImpl_ParseProperties(t *testing.T) {
+	parser := newStructParser()
 	user := structTestUser{
 		ID:        1,
 		Name:      "AnyName",
@@ -76,8 +76,8 @@ func TestParseProperties(t *testing.T) {
 	}
 }
 
-func TestParsePropertiesNonStructType(t *testing.T) {
-	parser := NewStructParser()
+func TestStructParserImpl_ParseProperties_NonStructType(t *testing.T) {
+	parser := newStructParser()
 	test := []string{"one"}
 	_, _, err := parser.ParseProperties(test, "")
 	if err == nil {
@@ -89,8 +89,8 @@ func TestParsePropertiesNonStructType(t *testing.T) {
 	}
 }
 
-func TestParsePropertiesMissingTag(t *testing.T) {
-	parser := NewStructParser()
+func TestStructParserImpl_ParseProperties_MissingTag(t *testing.T) {
+	parser := newStructParser()
 	address := testMissingTagAddress{
 		ID:      0,
 		Address: "",

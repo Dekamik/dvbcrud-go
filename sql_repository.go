@@ -166,8 +166,9 @@ func New[T any](db *sqlx.DB, config SQLRepositoryConfig) (*SQLRepository[T], err
 		idField = "id"
 	}
 
-	structParser := NewStructParser()
+	structParser := newStructParser()
 
+	// HACK: Cannot reflect type out of generic, so instantiating a T for reflection
 	var hack T
 	fields, err := structParser.ParseFieldNames(reflect.TypeOf(hack))
 	if err != nil {

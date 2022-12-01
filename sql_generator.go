@@ -6,20 +6,20 @@ import (
 )
 
 type sqlGenerator interface {
-	// generateSelect generates and returns a SELECT statement (WHERE ID)
-	generateSelect(table string, idField string, fields []string) (string, error)
+	// GenerateSelect generates and returns a SELECT statement (WHERE ID)
+	GenerateSelect(table string, idField string, fields []string) (string, error)
 
-	// generateSelectAll generates and returns a SELECT statement (all rows)
-	generateSelectAll(table string, fields []string) string
+	// GenerateSelectAll generates and returns a SELECT statement (all rows)
+	GenerateSelectAll(table string, fields []string) string
 
-	// generateInsert TODO: docs
-	generateInsert(table string, fields []string) (string, error)
+	// GenerateInsert TODO: docs
+	GenerateInsert(table string, fields []string) (string, error)
 
-	// generateUpdate TODO: docs
-	generateUpdate(table string, idField string, fields []string) (string, error)
+	// GenerateUpdate TODO: docs
+	GenerateUpdate(table string, idField string, fields []string) (string, error)
 
-	// generateDelete returns DELETE FROM <table> WHERE <id> = ?
-	generateDelete(table string, idField string) (string, error)
+	// GenerateDelete returns DELETE FROM <table> WHERE <id> = ?
+	GenerateDelete(table string, idField string) (string, error)
 }
 
 type sqlGeneratorImpl struct {
@@ -27,7 +27,7 @@ type sqlGeneratorImpl struct {
 	paramGen sqlParameterGenerator
 }
 
-func (s sqlGeneratorImpl) generateSelect(table string, idField string, fields []string) (string, error) {
+func (s sqlGeneratorImpl) GenerateSelect(table string, idField string, fields []string) (string, error) {
 	placeholders, err := s.paramGen.GetParamPlaceholders(1, Columns)
 	if err != nil {
 		return "", err
@@ -40,11 +40,11 @@ func (s sqlGeneratorImpl) generateSelect(table string, idField string, fields []
 		placeholders[0]), nil
 }
 
-func (s sqlGeneratorImpl) generateSelectAll(table string, fields []string) string {
+func (s sqlGeneratorImpl) GenerateSelectAll(table string, fields []string) string {
 	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), table)
 }
 
-func (s sqlGeneratorImpl) generateInsert(table string, fields []string) (string, error) {
+func (s sqlGeneratorImpl) GenerateInsert(table string, fields []string) (string, error) {
 	placeholders, err := s.paramGen.GetParamPlaceholders(len(fields), Values)
 	if err != nil {
 		return "", err
@@ -56,13 +56,12 @@ func (s sqlGeneratorImpl) generateInsert(table string, fields []string) (string,
 		strings.Join(placeholders, ", ")), nil
 }
 
-func (s sqlGeneratorImpl) generateUpdate(table string, idField string, fields []string) (string, error) {
+func (s sqlGeneratorImpl) GenerateUpdate(table string, idField string, fields []string) (string, error) {
 	columnPlaceholders, err := s.paramGen.GetParamPlaceholders(1, Columns)
 	if err != nil {
 		return "", err
 	}
 
-	// Not handling this error because the same code is run above
 	valuePlaceholders, err := s.paramGen.GetParamPlaceholders(len(fields), Values)
 	if err != nil {
 		return "", err
@@ -80,7 +79,7 @@ func (s sqlGeneratorImpl) generateUpdate(table string, idField string, fields []
 		columnPlaceholders[0]), nil
 }
 
-func (s sqlGeneratorImpl) generateDelete(table string, idField string) (string, error) {
+func (s sqlGeneratorImpl) GenerateDelete(table string, idField string) (string, error) {
 	placeholder, err := s.paramGen.GetParamPlaceholders(1, Columns)
 	if err != nil {
 		return "", err

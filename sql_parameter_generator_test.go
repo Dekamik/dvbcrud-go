@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestParamGenImpl_GetParamPlaceholdersMySQL(t *testing.T) {
+func TestSqlParameterGeneratorImpl_GetParamPlaceholders_MySQL(t *testing.T) {
 	gen := newSQLParamGen(MySQL)
 	expected := []string{"?", "?", "?"}
 
@@ -16,7 +16,7 @@ func TestParamGenImpl_GetParamPlaceholdersMySQL(t *testing.T) {
 	}
 }
 
-func TestParamGenImpl_GetParamPlaceholdersPostgreSQL(t *testing.T) {
+func TestSqlParameterGeneratorImpl_GetParamPlaceholders_PostgreSQL(t *testing.T) {
 	gen := newSQLParamGen(PostgreSQL)
 	expected := []string{"$1", "$2", "$3"}
 
@@ -27,7 +27,7 @@ func TestParamGenImpl_GetParamPlaceholdersPostgreSQL(t *testing.T) {
 	}
 }
 
-func TestParamGenImpl_GetParamPlaceholdersOracleCol(t *testing.T) {
+func TestSqlParameterGeneratorImpl_GetParamPlaceholders_OracleCol(t *testing.T) {
 	gen := newSQLParamGen(Oracle)
 	expected := []string{":col1", ":col2", ":col3"}
 
@@ -38,7 +38,7 @@ func TestParamGenImpl_GetParamPlaceholdersOracleCol(t *testing.T) {
 	}
 }
 
-func TestGetParamPlaceholdersOracleVal(t *testing.T) {
+func TestSqlParameterGeneratorImpl_GetParamPlaceholders_OracleVal(t *testing.T) {
 	gen := newSQLParamGen(Oracle)
 	expected := []string{":val1", ":val2", ":val3"}
 
@@ -49,7 +49,7 @@ func TestGetParamPlaceholdersOracleVal(t *testing.T) {
 	}
 }
 
-func TestGetParamPlaceholdersOracleColSingle(t *testing.T) {
+func TestSqlParameterGeneratorImpl_GetParamPlaceholders_OracleColSingle(t *testing.T) {
 	gen := newSQLParamGen(Oracle)
 	expected := []string{":col"}
 
@@ -60,7 +60,7 @@ func TestGetParamPlaceholdersOracleColSingle(t *testing.T) {
 	}
 }
 
-func TestGetParamPlaceholdersOracleValSingle(t *testing.T) {
+func TestSqlParameterGeneratorImpl_GetParamPlaceholders_OracleValSingle(t *testing.T) {
 	gen := newSQLParamGen(Oracle)
 	expected := []string{":val"}
 
@@ -71,7 +71,7 @@ func TestGetParamPlaceholdersOracleValSingle(t *testing.T) {
 	}
 }
 
-func TestGetParamPlaceholdersUnknownDialect(t *testing.T) {
+func TestSqlParameterGeneratorImpl_GetParamPlaceholders_UnknownDialect(t *testing.T) {
 	gen := newSQLParamGen(-1)
 	expected := "unknown dialect"
 
