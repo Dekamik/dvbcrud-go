@@ -64,32 +64,31 @@ func TestSqlRepository_Create(t *testing.T) {
 	}
 }
 
-func TestSQLRepository_CreateGetSqlErr(t *testing.T) {
-	mockDB, _, _ := sqlmock.New()
-	defer mockDB.Close()
-	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
-	config := SQLRepositoryConfig{
-		dialect: -1,
-		table:   "Users",
-		idField: "UserId",
-		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
-	}
-	repo, _ := New[repoTestUser](sqlxDb, config)
+func TestSQLRepository_Create_GetSqlErr(t *testing.T) {
 	expected := fmt.Errorf("AnyError")
-	repo.templates = sqlTemplatesMock{
+	parserMock := structParserMock{
+		ParsePropertiesMock: func(model any, idFieldName string) ([]string, []any, error) {
+			return []string{}, []any{}, nil
+		},
+	}
+	templatesMock := sqlTemplatesMock{
 		GetInsertMock: func(fields []string) (string, error) {
 			return "", expected
 		},
 	}
+	repo := SQLRepository[any]{
+		structParser: parserMock,
+		templates:    templatesMock,
+	}
 
-	actual := repo.Create(repoTestUser{})
+	actual := repo.Create("AnyModel")
 
 	if actual != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+		t.Fatalf("Expected %v but got %v", expected, actual)
 	}
 }
 
-func TestSqlRepository_CreatePrepareErr(t *testing.T) {
+func TestSqlRepository_Create_PrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -108,7 +107,7 @@ func TestSqlRepository_CreatePrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_CreateExecErr(t *testing.T) {
+func TestSqlRepository_Create_ExecErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -128,7 +127,7 @@ func TestSqlRepository_CreateExecErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_CreateRowsAffectedErr(t *testing.T) {
+func TestSqlRepository_Create_RowsAffectedErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -150,7 +149,7 @@ func TestSqlRepository_CreateRowsAffectedErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_CreateOtherThanOneRowAffected(t *testing.T) {
+func TestSqlRepository_Create_OtherThanOneRowAffected(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -206,7 +205,7 @@ func TestSqlRepository_Read(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadPrepareErr(t *testing.T) {
+func TestSqlRepository_Read_PrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -225,7 +224,7 @@ func TestSqlRepository_ReadPrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadStructScanErr(t *testing.T) {
+func TestSqlRepository_Read_StructScanErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -292,7 +291,7 @@ func TestSqlRepository_ReadAll(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadAllPrepareErr(t *testing.T) {
+func TestSqlRepository_ReadAll_PrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -311,7 +310,7 @@ func TestSqlRepository_ReadAllPrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_ReadAllStructScanErr(t *testing.T) {
+func TestSqlRepository_ReadAll_StructScanErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -362,32 +361,49 @@ func TestSqlRepository_Update(t *testing.T) {
 	}
 }
 
-func TestSQLRepository_UpdateGetSqlErr(t *testing.T) {
-	mockDB, _, _ := sqlmock.New()
-	defer mockDB.Close()
-	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
+func TestSQLRepository_Update_ParsePropertiesErr(t *testing.T) {
 	expected := fmt.Errorf("AnyError")
-	config := SQLRepositoryConfig{
-		dialect: -1,
-		table:   "Users",
-		idField: "UserId",
-		fields:  []string{"Name", "Surname", "Birthdate", "CreatedAt"},
+	parserMock := structParserMock{
+		ParsePropertiesMock: func(model any, idFieldName string) ([]string, []any, error) {
+			return nil, nil, expected
+		},
 	}
-	repo, _ := New[repoTestUser](sqlxDb, config)
-	repo.templates = sqlTemplatesMock{
+	repo := SQLRepository[any]{
+		structParser: parserMock,
+	}
+
+	actual := repo.Update(1, "AnyModel")
+
+	if actual != expected {
+		t.Fatalf("Expected %v but got %v", expected, actual)
+	}
+}
+
+func TestSQLRepository_Update_GetSqlErr(t *testing.T) {
+	expected := fmt.Errorf("AnyError")
+	parserMock := structParserMock{
+		ParsePropertiesMock: func(model any, idFieldName string) ([]string, []any, error) {
+			return []string{}, []any{}, nil
+		},
+	}
+	templatesMock := sqlTemplatesMock{
 		GetUpdateMock: func(fields []string) (string, error) {
 			return "", expected
 		},
 	}
+	repo := SQLRepository[any]{
+		structParser: parserMock,
+		templates:    templatesMock,
+	}
 
-	actual := repo.Update(1, repoTestUser{})
+	actual := repo.Update(1, "AnyModel")
 
 	if actual != expected {
-		t.Fatalf("Expected \"%s\" but got \"%s\" instead", expected, actual)
+		t.Fatalf("Expected %v but got %v", expected, actual)
 	}
 }
 
-func TestSqlRepository_UpdatePrepareErr(t *testing.T) {
+func TestSqlRepository_Update_PrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	expected := fmt.Errorf("any error")
@@ -406,7 +422,7 @@ func TestSqlRepository_UpdatePrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateExecErr(t *testing.T) {
+func TestSqlRepository_Update_ExecErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -426,7 +442,7 @@ func TestSqlRepository_UpdateExecErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateRowsAffectedErr(t *testing.T) {
+func TestSqlRepository_Update_RowsAffectedErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -448,7 +464,7 @@ func TestSqlRepository_UpdateRowsAffectedErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_UpdateOtherThanOneRowAffected(t *testing.T) {
+func TestSqlRepository_Update_OtherThanOneRowAffected(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -490,7 +506,7 @@ func TestSqlRepository_Delete(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeletePrepareErr(t *testing.T) {
+func TestSqlRepository_Delete_PrepareErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -509,7 +525,7 @@ func TestSqlRepository_DeletePrepareErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeleteExecErr(t *testing.T) {
+func TestSqlRepository_Delete_ExecErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -529,7 +545,7 @@ func TestSqlRepository_DeleteExecErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeleteRowsAffectedErr(t *testing.T) {
+func TestSqlRepository_Delete_RowsAffectedErr(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -550,7 +566,7 @@ func TestSqlRepository_DeleteRowsAffectedErr(t *testing.T) {
 	}
 }
 
-func TestSqlRepository_DeleteOtherThanOneRowAffected(t *testing.T) {
+func TestSqlRepository_Delete_OtherThanOneRowAffected(t *testing.T) {
 	repo, mockDB, mock, _ := newMock[repoTestUser]()
 	defer mockDB.Close()
 	repo.templates = sqlTemplatesMock{
@@ -588,7 +604,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestNewNilDb(t *testing.T) {
+func TestNew_NilDb(t *testing.T) {
 	config := SQLRepositoryConfig{
 		dialect: MySQL,
 		table:   "Users",
@@ -606,7 +622,7 @@ func TestNewNilDb(t *testing.T) {
 	}
 }
 
-func TestNewEmptyTableName(t *testing.T) {
+func TestNew_EmptyTableName(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")
@@ -627,7 +643,7 @@ func TestNewEmptyTableName(t *testing.T) {
 	}
 }
 
-func TestNewEmptyIdFieldName(t *testing.T) {
+func TestNew_EmptyIdFieldName(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	sqlxDb := sqlx.NewDb(mockDB, "sqlmock")

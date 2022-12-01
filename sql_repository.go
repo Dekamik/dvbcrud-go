@@ -177,6 +177,9 @@ func New[T any](db *sqlx.DB, config SQLRepositoryConfig) (*SQLRepository[T], err
 	paramGen := newSQLParamGen(config.dialect)
 	sqlGen := newSQLGenerator(paramGen)
 	statementGen, err := newSQLTemplates(sqlGen, config.table, idField, fields)
+	if err != nil {
+		return nil, err
+	}
 
 	return &SQLRepository[T]{
 		db:           db,

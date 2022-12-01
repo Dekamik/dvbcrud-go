@@ -1,5 +1,7 @@
 package dvbcrud
 
+import "reflect"
+
 type paramGenMock struct {
 	sqlParameterGenerator
 	GetParamPlaceholdersMock func(amount int, typ paramType) ([]string, error)
@@ -67,4 +69,19 @@ func (s sqlTemplatesMock) GetUpdate(fields []string) (string, error) {
 
 func (s sqlTemplatesMock) GetDelete() string {
 	return s.GetDeleteMock()
+}
+
+type structParserMock struct {
+	StructParser
+
+	ParseFieldNamesMock func(typ reflect.Type) ([]string, error)
+	ParsePropertiesMock func(model any, idFieldName string) ([]string, []any, error)
+}
+
+func (s structParserMock) ParseFieldNames(typ reflect.Type) ([]string, error) {
+	return s.ParseFieldNamesMock(typ)
+}
+
+func (s structParserMock) ParseProperties(model any, idFieldName string) ([]string, []any, error) {
+	return s.ParsePropertiesMock(model, idFieldName)
 }
