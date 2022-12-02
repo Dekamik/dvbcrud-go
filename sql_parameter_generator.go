@@ -14,6 +14,9 @@ const (
 )
 
 type sqlParameterGenerator interface {
+	// GetParamPlaceholders returns n amount of parameter placeholders as an array of strings.
+	// The placeholders are formatted according to the chosen dialect.
+	// (e.g. MySQL-like = ?, PostgreSQL = $1, Oracle = :col1 or :var1)
 	GetParamPlaceholders(amount int, typ parameterType) ([]string, error)
 }
 
@@ -22,9 +25,6 @@ type sqlParameterGeneratorImpl struct {
 	dialect SQLDialect
 }
 
-// GetParamPlaceholders returns n amount of parameter placeholders as an array of strings.
-// The placeholders are formatted according to the chosen dialect.
-// (e.g. MySQL-like = ?, PostgreSQL = $1, Oracle = :col1 or :var1)
 func (p sqlParameterGeneratorImpl) GetParamPlaceholders(amount int, typ parameterType) ([]string, error) {
 	placeholders := make([]string, amount)
 
